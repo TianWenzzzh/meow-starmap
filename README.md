@@ -11,7 +11,7 @@
 
 ```
 meow-starmap/
-├─ template/starmap.html   # 模板层：从 v2.7 正式版（3321 行）无损提取的 token 模板（MIT）
+├─ template/starmap.html   # 模板层：从 v2.7 正式版（3320 行）无损提取的 token 模板（MIT）
 │                           #   极光开场 / 星图 / 影廊 / 本命猫 / 喵星护照 / 分享卡 全特性
 ├─ tools/                  # 工具层（仅依赖 Pillow）
 │  ├─ build.py             #   构建器：CSV+照片+底图 → 离线星图（含 EXIF 矫正/压缩/分片/转义）

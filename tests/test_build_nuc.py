@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -19,7 +20,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-SRC_ASSETS = Path("/media/tianwen/KINGSTON/猫咪星图_总库/05_git仓库_最新v2.6/assets")
+_HOME = Path(os.environ.get("STARMAP_HOME",
+                            "/media/tianwen/KINGSTON/猫咪星图_总库"))
+SRC_ASSETS = _HOME / "05_git仓库_最新v2.6" / "assets"
 DIST = Path("/tmp/meow-starmap-test/nuc")
 
 STR_FIELDS = ("id", "name", "rank", "title", "coat", "coatGroup",

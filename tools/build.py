@@ -16,7 +16,7 @@
   <pkg>/data/calib.json         可选：人工校准星位（缺失则浏览器 basePos 兜底）
   <pkg>/data/areas.json 等       可选：星域/星宿/关系/海报推荐
   <pkg>/photos/*.jpg            代表照（文件名 = 名册“代表照片文件”列 basename）
-  <pkg>/map/*.jpg               底图（一张）
+  <pkg>/map/*.jpg               底图（一张；缺失时自动生成星野底图）
 
 本文件 vendor 自喵星图工厂（MIT License, © TianWenzzzh,
 https://github.com/TianWenzzzh/catgalaxy-factory v1.0.0）：
@@ -33,6 +33,7 @@ import csv
 import io
 import json
 import math
+import random
 import re
 import shutil
 import sys
@@ -40,7 +41,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_PATH = REPO_ROOT / "template" / "starmap.html"
@@ -225,6 +226,43 @@ def prepare_jpeg(path: Path, max_side: int, max_bytes: int | None):
         fixed.save(buf, "JPEG", quality=86, optimize=True, progressive=True)
         out = buf.getvalue()
     return out, True
+
+
+# vendor: app/image_proc.py generate_default_map（MIT，© TianWenzzzh/catgalaxy-factory）
+def generate_default_map(dest: Path, width: int = MAX_MAP_SIDE,
+                         height: int = 1239, seed: int = 20260906) -> Path:
+    """生成深空星野底图（渐变+星云+星点+淡网格），保证零素材也能出成品。"""
+    rng = random.Random(seed)
+    col = Image.new("RGB", (1, height))                     # 1px 列再横向拉伸
+    for y in range(height):
+        t = y / height
+        col.putpixel((0, y), (int(7 + 9 * (1 - t)), int(12 + 12 * (1 - t)),
+                              int(28 + 26 * (1 - t))))
+    img = col.resize((width, height))
+
+    neb = Image.new("RGB", (width, height), (0, 0, 0))
+    nd = ImageDraw.Draw(neb)
+    for _ in range(9):
+        cx, cy = rng.randrange(width), rng.randrange(height)
+        r = rng.randrange(180, 460)
+        c = rng.choice([(70, 52, 20), (18, 52, 50), (44, 26, 62)])
+        nd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=c)
+    neb = neb.filter(ImageFilter.GaussianBlur(140))
+    img = Image.blend(img, Image.eval(neb, lambda v: min(255, v + 8)), 0.34)
+
+    d = ImageDraw.Draw(img)
+    for _ in range(1500):
+        x, y = rng.randrange(width), rng.randrange(height)
+        b = rng.randint(40, 190)
+        s = 1 if rng.random() > 0.9 else 0
+        d.ellipse([x, y, x + s, y + s], fill=(b, b + 8, min(255, b + 24)))
+    for gx in range(0, width, width // 12):               # 淡网格=校园区块感
+        d.line([(gx, 0), (gx, height)], fill=(28, 40, 74), width=1)
+    for gy in range(0, height, height // 8):
+        d.line([(0, gy), (width, gy)], fill=(28, 40, 74), width=1)
+
+    img.save(dest, "JPEG", quality=86, optimize=True)
+    return dest
 
 
 # ---------- JS 字面量渲染（v2.7 风格：去前导零的紧凑数字） ----------
@@ -437,10 +475,16 @@ def main() -> int:
     if pkg:
         csv_path = pkg / "data" / "猫咪名册.csv"
         photos_dir = pkg / "photos"
-        maps = list((pkg / "map").glob("*.jp*g")) if (pkg / "map").exists() else []
-        if not maps:
-            raise SystemExit(f"数据包缺底图：{pkg}/map/ 下没有 jpg")
-        map_path = maps[0]
+        map_dir = pkg / "map"
+        maps = list(map_dir.glob("*.jp*g")) if map_dir.exists() else []
+        if maps:
+            map_path = maps[0]
+        else:
+            # 零素材兜底：自动生成星野底图放进数据包（幂等，下次运行直接复用）
+            map_dir.mkdir(parents=True, exist_ok=True)
+            map_path = map_dir / "自动生成星野底图.jpg"
+            generate_default_map(map_path)
+            print(f"· 未提供底图，已自动生成星野底图：{map_path}（可随时替换为校园实拍地图）")
         data_dir = pkg / "data"
     else:
         if not (args.school and args.data and args.photos and args.map):
