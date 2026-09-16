@@ -257,11 +257,11 @@ def render_cats(cats: list[dict]) -> str:
     return "\n".join(out)
 
 
-def render_calib(calib: dict, lead: str) -> str:
+def render_calib(calib: dict) -> str:
     if not calib:
         return "const CALIB={};"
     items = list(calib.items())
-    lines = ["const CALIB={", f"  /* {lead} */"]
+    lines = ["const CALIB={"]
     for i in range(0, len(items), 4):
         row = ",".join(
             f'"{js_str(cid)}":{{x:{js_num3(p["x"])},y:{js_num3(p["y"])}}}'
@@ -278,7 +278,7 @@ def render_areas(areas: list[dict]) -> str:
     for i in range(0, len(areas), 3):
         row = "".join(
             f'{{x:{js_num3(a["x"])},y:{js_num3(a["y"])},'
-            f't:"{js_str(a["t"])}"' + ("," if not (
+            f't:"{js_str(a["t"])}"}}' + ("," if not (
                 i + 3 >= len(areas) and j == len(areas[i:i + 3]) - 1) else "")
             for j, a in enumerate(areas[i:i + 3]))
         lines.append("  " + row)
@@ -588,7 +588,7 @@ def main() -> int:
                       f"{survey_date}普查）",
         "cats_lead_comment": f"// ---- 真实名册数据（build.py 自名册 CSV 注入 · "
                              f"{n} 只在编 · {survey_date} 普查）----",
-        "calib_lead_comment": calib_lead,
+        "calib_lead_comment": f"/* {calib_lead} */",
         "map_src": f'const MAP_SRC = "{map_file}";',
         "ls_key": f'const LS_KEY  = "{ls_prefix}-cat-galaxy-positions";',
         "js_title": f'const TITLE="{product}";',
@@ -630,7 +630,7 @@ def main() -> int:
     }
     block_values = {
         "cats_block": render_cats(cats),
-        "calib_block": render_calib(calib, calib_lead),
+        "calib_block": render_calib(calib),
         "areas_block": render_areas(areas),
         "area_keys_block": render_area_keys(area_keys),
         "rel_block": render_rel(rel),

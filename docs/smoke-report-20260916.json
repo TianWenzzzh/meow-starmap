@@ -1,0 +1,81 @@
+{
+  "pages": {
+    "nuc": {
+      "checks": {
+        "①开场屏署名": {
+          "credit": "原创普查数据 · 转载请署名 · github.com/TianWenzzzh/nuc-cat-starmap",
+          "href": "https://github.com/TianWenzzzh/nuc-cat-starmap",
+          "pass": true
+        },
+        "②主界面星点": {
+          "stars": 76,
+          "areas": 12,
+          "pass": true
+        },
+        "③影廊灯箱": {
+          "from": "圆眼 59 / 76 ｜ CAT-044 · 收录 1 张",
+          "to": "黑豆 60 / 76 ｜ CAT-045 · 收录 1 张",
+          "closed_display": "none",
+          "pass": true
+        },
+        "④本命猫面板": {
+          "display_when_open": "flex",
+          "pass": true
+        },
+        "⑤分享卡": {
+          "file": "05_nuc_poster.png",
+          "size": [
+            720,
+            1120
+          ],
+          "bytes": 864706,
+          "signature_in_source": "原创 · __REPO_DISPLAY__ 绘制于画布 ph-24",
+          "pass": true
+        },
+        "中北斗calib注释": {
+          "text": "固化校准坐标（2026-08-17 v6 · 全员限定红框核心建成区 x.332-.848/y.164-.827 · 语义聚簇落位 · 手动校准 localSt",
+          "pass": true
+        }
+      },
+      "title": "中北喵星图 · 校园猫咪星系",
+      "console_errors": [],
+      "console_other": [
+        {
+          "type": "log",
+          "text": "%c🐱 中北喵星图 · NUC CAT GALAXY v2.7 font:700 18px sans-serif;color:#ffd76a;text-shadow:0 0 8px #ffd76a66"
+        },
+        {
+          "type": "log",
+          "text": "%c原创作品 © 2026 TianWenzzzh · 76 只猫的实地普查档案\n开源仓库：https://github.com/TianWenzzzh/nuc-cat-starmap\n转载请署名并附仓库链接 · 一起给更多学校点亮喵星系 ✦ color:#7f92c0;line-height:1.7"
+        }
+      ]
+    },
+    "demo": {
+      "checks": {
+        "⑥示例校2星": {
+          "stars": 2,
+          "calib": 0,
+          "pass": true
+        },
+        "⑦算法推导注记": {
+          "source_comment": "星位由页面内置算法按编号稳定推导（basePos）· 可在页面上手拖校准后导出坐标 ",
+          "card_pill_visible": true,
+          "pass": true
+        }
+      },
+      "title": "示例校喵星图 · 校园猫咪星系",
+      "console_errors": [],
+      "console_other": [
+        {
+          "type": "log",
+          "text": "%c🐱 示例校喵星图 · DEMO CAT GALAXY v1.0 font:700 18px sans-serif;color:#ffd76a;text-shadow:0 0 8px #ffd76a66"
+        },
+        {
+          "type": "log",
+          "text": "%c原创作品 © 2026 TianWenzzzh · 2 只猫的实地普查档案\n开源仓库：https://github.com/TianWenzzzh/meow-starmap\n转载请署名并附仓库链接 · 一起给更多学校点亮喵星系 ✦ color:#7f92c0;line-height:1.7"
+        }
+      ]
+    }
+  },
+  "ok": true
+}

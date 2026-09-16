@@ -1,0 +1,10 @@
+{
+  "school": "示例校",
+  "product": "示例校喵星图",
+  "en": "DEMO CAT GALAXY",
+  "version": "v1.0",
+  "survey_date": "2026-09",
+  "ls_prefix": "demo",
+  "repo_url": "https://github.com/TianWenzzzh/meow-starmap",
+  "docs_ref": "docs/快速上手.md"
+}
