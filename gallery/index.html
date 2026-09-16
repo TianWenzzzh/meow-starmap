@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>喵星系多校展示墙 · meow-starmap</title>
+<meta name="description" content="各高校校园猫实地普查数据生成的离线星图：名册 CSV + 照片 → 单文件交互星图。">
+<style>
+  :root{
+    --bg:#070b1a; --bg2:#0d1330; --ink:#e9eefc; --sub:#93a0c8;
+    --gold:#ffd76a; --line:rgba(150,170,230,.18); --card:rgba(20,28,60,.72);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;line-height:1.7}
+  body{min-height:100vh;
+    background:
+      radial-gradient(1200px 700px at 70% -10%,rgba(78,98,200,.20),transparent 60%),
+      radial-gradient(900px 600px at 10% 110%,rgba(255,215,106,.08),transparent 60%),
+      var(--bg);
+    background-attachment:fixed}
+  /* 星点背景（纯 CSS，无依赖） */
+  .stars{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.7}
+  .stars i{position:absolute;width:2px;height:2px;border-radius:50%;
+    background:#cdd8ff;animation:tw 4s ease-in-out infinite}
+  @keyframes tw{0%,100%{opacity:.2}50%{opacity:1}}
+  .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:72px 24px 96px}
+  header h1{font-size:34px;letter-spacing:3px;
+    background:linear-gradient(90deg,#fff,var(--gold));-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  header .en{color:var(--sub);letter-spacing:5px;font-size:13px;margin-top:6px}
+  header p{color:var(--sub);margin-top:20px;max-width:680px}
+  header .cta{margin-top:26px;display:flex;gap:12px;flex-wrap:wrap}
+  .btn{display:inline-block;padding:10px 20px;border:1px solid rgba(255,215,106,.45);
+    border-radius:999px;color:var(--gold);text-decoration:none;font-size:14px;
+    transition:.2s;background:rgba(255,215,106,.06)}
+  .btn:hover{background:rgba(255,215,106,.16);box-shadow:0 0 16px rgba(255,215,106,.25)}
+  .btn.ghost{border-color:var(--line);color:var(--sub)}
+  .stats-row{display:flex;gap:32px;margin-top:34px;flex-wrap:wrap;color:var(--sub);font-size:14px}
+  .stats-row b{color:var(--ink);font-size:22px;font-weight:700;margin-right:6px}
+  h2{font-size:18px;margin:56px 0 20px;letter-spacing:2px;display:flex;align-items:center;gap:10px}
+  h2::before{content:"✦";color:var(--gold)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    overflow:hidden;text-decoration:none;color:inherit;backdrop-filter:blur(6px);
+    transition:transform .2s,box-shadow .2s,border-color .2s;display:block}
+  .card:hover{transform:translateY(-4px);border-color:rgba(255,215,106,.4);
+    box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 18px rgba(255,215,106,.12)}
+  .cover{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;
+    border-bottom:1px solid var(--line)}
+  .body{padding:16px 18px 18px}
+  .row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-size:17px;font-weight:700;letter-spacing:1px}
+  .tag{font-size:11px;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .tag.live{color:#9be8b4;background:rgba(46,180,110,.14);border:1px solid rgba(46,180,110,.35)}
+  .tag.beta{color:#c79bff;background:rgba(160,110,255,.14);border:1px solid rgba(160,110,255,.35)}
+  .meta{color:var(--sub);font-size:13px;margin-top:8px}
+  .note{color:#c3cdf0;font-size:13px;margin-top:10px}
+  .num{color:var(--gold);font-weight:700}
+  footer{margin-top:72px;padding-top:24px;border-top:1px solid var(--line);
+    color:var(--sub);font-size:13px;display:flex;gap:16px;flex-wrap:wrap}
+  footer a{color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="stars" id="stars" aria-hidden="true"></div>
+<div class="wrap">
+  <header>
+    <h1>喵星系多校展示墙</h1>
+    <div class="en">MEOW STARMAP · CAMPUS CATS GALAXY</div>
+    <p>每一所学校的校园猫，都值得一张自己的星图。
+       这里是用统一开放模板、由各校同学实地普查并构建的离线星图——
+       一份 CSV 名册加一个照片文件夹，就能生成可断网打开的单页交互星图。</p>
+    <div class="cta">
+      <a class="btn" href="../docs/快速上手.md">15 分钟复刻你们学校 →</a>
+      <a class="btn ghost" href="https://github.com/TianWenzzzh/meow-starmap">GitHub 仓库</a>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+  </header>
+
+  <h2>已点亮的校园</h2>
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <span>代码与模板 MIT · 各校照片与数据 CC BY-NC-SA 4.0</span>
+    <a href="https://github.com/TianWenzzzh/meow-starmap/blob/main/DATA-LICENSE">数据许可边界</a>
+    <a href="../docs/PR指南.md">提交你们学校</a>
+  </footer>
+</div>
+
+<script>
+/* 新增学校：在数组里加一条即可（见 docs/PR指南.md §4） */
+const SCHOOLS = [
+  {
+    short: "nuc",
+    name: "中北大学",
+    cats: 76,
+    photos: 75,
+    status: "live",
+    cover: "../docs/screenshots/02_nuc_starmap.png",
+    href: "https://github.com/TianWenzzzh/nuc-cat-starmap",
+    note: "首个完整真实数据包：194 张普查实拍归并 76 只在编，54 颗星手工校准，12 星域 12 星宿。"
+  },
+  {
+    short: "demo",
+    name: "示例校（占位样本）",
+    cats: 2,
+    photos: 2,
+    status: "beta",
+    cover: "../docs/screenshots/06_demo_stars.png",
+    href: "../docs/快速上手.md",
+    note: "2 行虚构数据 + 程序生成占位图，30 分钟跑通整条构建流水线的最小样本。"
+  }
+];
+
+const grid = document.getElementById("grid");
+for (const s of SCHOOLS) {
+  const a = document.createElement("a");
+  a.className = "card";
+  a.href = s.href;
+  if (!/^https?:/.test(s.href)) a.target = "_self"; else a.target = "_blank";
+  a.rel = "noopener";
+  a.innerHTML =
+    '<img class="cover" src="' + s.cover + '" alt="' + s.name + '喵星图截图" loading="lazy">' +
+    '<div class="body"><div class="row1">' +
+      '<span class="name"></span><span class="tag ' + s.status + '">' +
+      (s.status === "live" ? "已发布" : "样例 / 进行中") + '</span></div>' +
+    '<div class="meta"><span class="num">' + s.cats + '</span> 只在编 · ' +
+      s.photos + ' 张代表照</div>' +
+    '<div class="note"></div></div>';
+  a.querySelector(".name").textContent = s.name;
+  a.querySelector(".note").textContent = s.note;
+  grid.appendChild(a);
+}
+
+const totalCats = SCHOOLS.reduce((n, s) => n + s.cats, 0);
+document.getElementById("statsRow").innerHTML =
+  "<span><b>" + SCHOOLS.length + "</b>所校园</span>" +
+  "<span><b>" + totalCats + "</b>只在编校园猫</span>" +
+  "<span><b>100%</b>离线可打开</span>";
+
+/* 装饰星点 */
+const sc = document.getElementById("stars");
+for (let i = 0; i < 90; i++) {
+  const x = document.createElement("i");
+  x.style.left = (Math.random() * 100) + "%";
+  x.style.top = (Math.random() * 100) + "%";
+  x.style.animationDelay = (Math.random() * 4) + "s";
+  x.style.transform = "scale(" + (0.6 + Math.random() * 1.4) + ")";
+  sc.appendChild(x);
+}
+</script>
+</body>
+</html>
