@@ -385,6 +385,34 @@ def cats_from_csv(rows: list[RosterCat]) -> list[dict]:
     return cats
 
 
+def validate_roster(rows: list[RosterCat]) -> None:
+    """行级硬校验：空编号/空昵称必须带行号报错（新手最高频的表格坑）。"""
+    problems = []
+    for r in rows:
+        if not str(r.id).strip():
+            problems.append(f"第 {r.line} 行：编号为空")
+        if not str(r.name).strip():
+            problems.append(f"第 {r.line} 行：昵称为空")
+    if problems:
+        raise SystemExit("名册存在空字段（每只猫都必须有编号和昵称）：\n  "
+                         + "\n  ".join(problems[:10]))
+
+
+def validate_cats_unique(cats: list[dict], source: str) -> None:
+    """猫 ID 是星图全系统主键（CALIB/影廊/海报/搜索都按它索引），
+    重复 ID 必须在构建期拒绝，而不是产出静默串档的坏星图。"""
+    seen: dict[str, list[int]] = {}
+    for i, c in enumerate(cats, start=1):
+        cid = str(c.get("id", "")).strip()
+        seen.setdefault(cid, []).append(i)
+    dups = {cid: ps for cid, ps in seen.items() if len(ps) > 1}
+    if dups:
+        detail = "；".join(
+            f"{cid} 出现 {len(ps)} 次（{source}第 {'、'.join(map(str, ps))} 条）"
+            for cid, ps in dups.items())
+        raise SystemExit(f"{source}猫编号重复，请先在数据里去重：{detail}")
+
+
 def derive_areas(rows: list[RosterCat]) -> list[dict]:
     from starmap_layout import assign_anchors, normalize_area
     uniq = []
@@ -526,19 +554,24 @@ def main() -> int:
 
     # --- 名册 ---
     rows = parse_roster(csv_path.read_text("utf-8-sig"))
+    validate_roster(rows)
     n = len(rows)
     override = load_json(data_dir / "cats_override.json", None) if data_dir else None
     if override is not None:
         if len(override) != n:
             raise SystemExit(
                 f"cats_override.json 条数 {len(override)} ≠ 名册 {n} 行")
+        validate_cats_unique(override, "cats_override.json ")
         cats = override
     else:
         cats = cats_from_csv(rows)
+        validate_cats_unique(cats, "名册 ")
     photo_sum = sum(int(c["photoCount"]) for c in cats)
     p_total = opt(args.photo_count, "survey_photo_total", photo_sum)
 
     # --- 照片：缺失严格报错；共用照只存一份 ---
+    if not photos_dir.is_dir():
+        raise SystemExit(f"照片目录不存在：{photos_dir}（数据包应含 photos/*.jpg）")
     need = {c["photo"] for c in cats}
     have = {p.name for p in photos_dir.glob("*.jp*g")}
     missing = sorted(need - have)

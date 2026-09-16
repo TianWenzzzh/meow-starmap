@@ -5,9 +5,17 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -15,8 +23,9 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           python-version: "3.12"
+          enable-cache: true
 
-      - name: Python tests (template roundtrip + package builds)
+      - name: Python tests (roundtrip + package builds + hosted artifacts drift)
         run: uv run --with pillow python -m unittest discover -s tests -v
 
       - uses: actions/setup-node@v4

@@ -160,5 +160,89 @@ class InjectionSafetyTests(unittest.TestCase):
         self.assertIn('\\"', s)                # 双引号被转义
 
 
+class RosterValidationTests(unittest.TestCase):
+    """新手最常踩的数据坑必须在构建前被明确拒绝（而不是产出坏星图）。"""
+
+    HEADER = ("编号,昵称,军衔,工位,毛色,特征描述,代表照片文件,照片数量,"
+              "出没区域,关联照片编号,置信度,备注\n")
+
+    def _pkg(self, td: Path, roster_rows: str,
+             override: list | None = None) -> Path:
+        t = td / "pkg"
+        (t / "data").mkdir(parents=True)
+        (t / "data" / "猫咪名册.csv").write_text(self.HEADER + roster_rows,
+                                                 encoding="utf-8")
+        shutil.copytree(REPO / "schools" / "示例校" / "photos", t / "photos")
+        (t / "data" / "build_meta.json").write_text(json.dumps({
+            "school": "校验测试校", "product": "校验测试校喵星图",
+            "en": "CHECK CAT GALAXY", "ls_prefix": "check"}), encoding="utf-8")
+        if override is not None:
+            (t / "data" / "cats_override.json").write_text(
+                json.dumps(override, ensure_ascii=False), encoding="utf-8")
+        return t
+
+    def _row(self, cid: str, name: str, photo: str = "demo-cat-001.jpg") -> str:
+        # 两猫共用同一占位照（构建允许），只关心名册校验
+        return (f'{cid},{name},列兵,站岗,橘白,贪吃,{photo},1,'
+                f'东区,,高,\n')
+
+    def test_duplicate_id_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            t = self._pkg(Path(td),
+                          self._row("CAT-001", "阿橘") + self._row("CAT-001", "小黑"))
+            r = run_build("--pkg", str(t), "--out", str(Path(td) / "out"))
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("重复", r.stderr + r.stdout)
+
+    def test_empty_id_rejected_with_line(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            t = self._pkg(Path(td),
+                          self._row("CAT-001", "阿橘") +
+                          self._row("", "没有编号的猫"))
+            r = run_build("--pkg", str(t), "--out", str(Path(td) / "out"))
+            self.assertNotEqual(r.returncode, 0)
+            msg = r.stderr + r.stdout
+            self.assertIn("编号", msg)
+            self.assertIn("3", msg)          # CSV 第 3 行（含表头）
+
+    def test_empty_name_rejected_with_line(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            t = self._pkg(Path(td),
+                          self._row("CAT-001", "阿橘") +
+                          self._row("CAT-002", " "))
+            r = run_build("--pkg", str(t), "--out", str(Path(td) / "out"))
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("昵称", r.stderr + r.stdout)
+
+    def test_override_duplicate_id_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            t = self._pkg(Path(td),
+                          self._row("CAT-001", "阿橘") +
+                          self._row("CAT-002", "小黑"),
+                          override=[
+                              {"id": "CAT-009", "name": "阿橘", "rank": "",
+                               "title": "", "coat": "", "coatGroup": "",
+                               "features": "", "area": "东区", "bio": "",
+                               "photo": "demo-cat-001.jpg", "photoCount": 1,
+                               "brightness": .5},
+                              {"id": "CAT-009", "name": "小黑", "rank": "",
+                               "title": "", "coat": "", "coatGroup": "",
+                               "features": "", "area": "东区", "bio": "",
+                               "photo": "demo-cat-002.jpg", "photoCount": 1,
+                               "brightness": .5},
+                          ])
+            r = run_build("--pkg", str(t), "--out", str(Path(td) / "out"))
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("重复", r.stderr + r.stdout)
+
+    def test_photos_dir_missing_rejected_clearly(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            t = self._pkg(Path(td), self._row("CAT-001", "阿橘"))
+            shutil.rmtree(t / "photos")
+            r = run_build("--pkg", str(t), "--out", str(Path(td) / "out"))
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("照片目录", r.stderr + r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
