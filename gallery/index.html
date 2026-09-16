@@ -51,12 +51,22 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
     overflow:hidden;text-decoration:none;color:inherit;backdrop-filter:blur(6px);
-    transition:transform .2s,box-shadow .2s,border-color .2s;display:block}
+    transition:transform .2s,box-shadow .2s,border-color .2s;
+    display:flex;flex-direction:column}
   .card:hover{transform:translateY(-4px);border-color:rgba(255,215,106,.4);
     box-shadow:0 12px 40px rgba(0,0,0,.45),0 0 18px rgba(255,215,106,.12)}
   .cover{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;
     border-bottom:1px solid var(--line)}
-  .body{padding:16px 18px 18px}
+  .body{padding:16px 18px 18px;display:flex;flex-direction:column;flex:1}
+  .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .mini{display:inline-block;padding:7px 15px;border-radius:999px;font-size:13px;
+    text-decoration:none;border:1px solid rgba(255,215,106,.5);color:var(--gold);
+    background:rgba(255,215,106,.08);transition:.2s}
+  .mini:hover{background:rgba(255,215,106,.18);box-shadow:0 0 14px rgba(255,215,106,.22)}
+  .mini.ghost{border-color:var(--line);color:var(--sub);background:transparent}
+  .mini.ghost:hover{background:rgba(150,170,230,.1)}
+  .sizehint{align-self:center;color:var(--sub);font-size:11px;opacity:.75}
+  .coverlink{display:block;line-height:0}
   .row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .name{font-size:17px;font-weight:700;letter-spacing:1px}
   .tag{font-size:11px;padding:2px 9px;border-radius:999px;white-space:nowrap}
@@ -106,7 +116,9 @@ const SCHOOLS = [
     photos: 75,
     status: "live",
     cover: "covers/nuc.jpg",
-    href: "https://github.com/TianWenzzzh/nuc-cat-starmap",
+    try: "../nuc/",
+    tryBytes: "约 11 MB",
+    src: "https://github.com/TianWenzzzh/nuc-cat-starmap",
     note: "首个完整真实数据包：194 张普查实拍归并 76 只在编，54 颗星手工校准，12 星域 12 星宿。"
   },
   {
@@ -116,29 +128,35 @@ const SCHOOLS = [
     photos: 2,
     status: "beta",
     cover: "covers/demo.jpg",
-    href: "https://github.com/TianWenzzzh/meow-starmap/blob/main/docs/快速上手.md",
+    try: "../demo/",
+    tryBytes: "约 0.4 MB",
+    src: "https://github.com/TianWenzzzh/meow-starmap/blob/main/docs/快速上手.md",
     note: "2 行虚构数据 + 程序生成占位图，30 分钟跑通整条构建流水线的最小样本。"
   }
 ];
 
 const grid = document.getElementById("grid");
 for (const s of SCHOOLS) {
-  const a = document.createElement("a");
-  a.className = "card";
-  a.href = s.href;
-  if (!/^https?:/.test(s.href)) a.target = "_self"; else a.target = "_blank";
-  a.rel = "noopener";
-  a.innerHTML =
-    '<img class="cover" src="' + s.cover + '" alt="' + s.name + '喵星图截图" loading="lazy">' +
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML =
+    '<a class="coverlink" href="' + s["try"] + '"><img class="cover" src="' + s.cover +
+      '" alt="' + s.name + '喵星图封面" loading="lazy"></a>' +
     '<div class="body"><div class="row1">' +
       '<span class="name"></span><span class="tag ' + s.status + '">' +
       (s.status === "live" ? "已发布" : "样例 / 进行中") + '</span></div>' +
     '<div class="meta"><span class="num">' + s.cats + '</span> 只在编 · ' +
       s.photos + ' 张代表照</div>' +
-    '<div class="note"></div></div>';
-  a.querySelector(".name").textContent = s.name;
-  a.querySelector(".note").textContent = s.note;
-  grid.appendChild(a);
+    '<div class="note"></div>' +
+    '<div class="actions">' +
+      '<a class="mini" href="' + s["try"] + '">在线体验 →</a>' +
+      '<a class="mini ghost" href="' + s.src + '" target="_blank" rel="noopener">' +
+        (s.status === "live" ? "数据与源码" : "复刻教程") + '</a>' +
+      '<span class="sizehint"></span></div></div>';
+  card.querySelector(".name").textContent = s.name;
+  card.querySelector(".note").textContent = s.note;
+  card.querySelector(".sizehint").textContent = s.tryBytes;
+  grid.appendChild(card);
 }
 
 const live = SCHOOLS.filter(s => s.status === "live");

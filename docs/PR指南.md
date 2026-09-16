@@ -52,16 +52,19 @@
 
 ## 4. 更新展示墙
 
-在 `gallery/index.html` 的 `SCHOOLS` 数组里加一条（卡片由此数组驱动）：
+在 `gallery/index.html` 的 `SCHOOLS` 数组里加一条（卡片由该数组驱动）：
 
 ```js
-{ short:"<短名>", name:"<校名>", cats: 76, status:"live",
-  shots:"../schools/<短名>/", cover:"../docs/screenshots/<封面>.png",
+{ short:"<短名>", name:"<校名>", cats: 12, photos: 12, status:"live",
+  cover:"covers/<短名>.jpg",
+  try:"../<短名>/", tryBytes:"约 N MB",
+  src:"https://github.com/<你>/<fork>",
   note:"<一句话亮点>" }
 ```
 
-`status`：`live`（已完整发布）/ `beta`（收集中）。封面图建议自存一张
-16:9 截图放入你们的学校目录（如 `schools/<短名>/cover.png`）。
+- `status`：`live`（已完整发布，计入「真实校园 / 在编」统计）/ `beta`（样例或收集中，不计入总数）；
+- 封面放 `gallery/covers/<短名>.jpg`，800×500（16:10），建议 ≤100 KB（Pillow 压缩或截图后导出）；
+- `try` 指向仓库根目录下由 Pages 托管的产物目录（见第 7 节）；`src` 指向你的数据包仓库或教程。
 
 ## 5. 提交与 PR 信息
 
@@ -79,3 +82,24 @@
 - 不审查小传文笔——故事属于你们，但拒绝人身攻击与商业广告。
 
 合入后维护者会把卡片上线到展示墙，并视情况打 tag。
+
+## 7. 在线体验产物（Pages 托管）如何重建
+
+仓库根目录的 `nuc/`、`demo/` 是 GitHub Pages 上可直接玩的构建产物，**不要手工修改**。
+模板或数据包更新后，用同一条构建命令重建并覆盖（产物名统一改为 `index.html`）：
+
+```bash
+# 示例校（约 0.4 MB）
+uv run --with pillow tools/build.py --pkg schools/示例校 --out /tmp/demo
+cp /tmp/demo/示例校喵星图.html demo/index.html
+cp /tmp/demo/assets/photo-data-*.js demo/assets/
+
+# 中北（约 11 MB，9 个照片分片）
+uv run --with pillow tools/build.py --pkg schools/nuc --out /tmp/nuc
+cp /tmp/nuc/中北喵星图.html nuc/index.html
+cp /tmp/nuc/assets/photo-data-*.js nuc/assets/
+```
+
+重建后必做：`node tools/check_html_scripts.mjs template/starmap.html gallery index.html nuc/index.html demo/index.html`
++ 浏览器打开 `/nuc/`、`/demo/` 点一次「影廊」确认照片能解码（见 `docs/screenshots/13、14`）。
+新学校 PR 合入后，由维护者按同样方式把产物放到 `<短名>/` 并连通展示墙卡片。

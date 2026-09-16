@@ -6,6 +6,7 @@
 中北大学的 76 只校园猫第一次证明了这件事可行；这个仓库把它做成任何学校都能复刻的开放模板。
 
 🌌 **多校展示墙**：<https://tianwenzzzh.github.io/meow-starmap/gallery/>
+（可直接在浏览器里玩：[中北大学 76 只完整版](https://tianwenzzzh.github.io/meow-starmap/nuc/) · [示例校 2 只轻量版](https://tianwenzzzh.github.io/meow-starmap/demo/)）
 
 ## 三层架构
 
@@ -23,8 +24,9 @@ meow-starmap/
 ├─ schools/                # 数据层（CC BY-NC-SA 4.0，各校自有）
 │  ├─ nuc/                 #   中北大学：76 只名册 + 75 代表照 + 夜空底图 + 归并摘要
 │  └─ 示例校/               #   2 只虚构样本 + 占位图，用来跑通流水线
-├─ tests/                  # 模板字节级往返测试 + 中北构建等价性测试（16 项全绿）
+├─ tests/                  # 模板字节级往返 + 构建等价性 + 注入安全测试（24 项全绿）
 ├─ gallery/                # 多校展示墙（纯静态，GitHub Pages）
+├─ nuc/ · demo/            # Pages 托管的在线体验产物（build.py 生成，勿手改；重建见 docs/PR指南.md §7）
 └─ docs/                   # 快速上手 / 普查拍摄规范 / PR 指南 / 自检清单 / 验收证据
 ```
 
