@@ -64,13 +64,25 @@ uv run --with pillow tools/build.py --pkg schools/示例校 --out dist/示例校
 
 ## 质量门禁（本仓库如何保证不翻车）
 
+GitHub Actions（[CI 状态](https://github.com/TianWenzzzh/meow-starmap/actions)）
+在每次 push/PR 跑两条线：**32 项 Python 测试零跳过** + **6 个 HTML 内联脚本语法门禁**，
+以及 headless Chromium 对 `/gallery/ /nuc/ /demo/` 的真实冒烟（开场 → 计数 → 影廊灯箱解码）。
+
 - **字节级往返**：模板由 v2.7 正式版机器提取，把原始数据灌回后与正式版逐字节相同
-  （sha256 锁定，见 `tests/fixtures/nuc_literals.json`）；
+  （sha256 锁定，golden 基线入库 `tests/fixtures/`，CI 无需私有资产）；
 - **中北构建等价**：76 条 CATS 逐字段一致、54 个 CALIB 坐标差 ≤0.02、
-  76 个照片数据行与 v2.7 源分片逐字节相同；
-- **浏览器冒烟**：Chromium 实测 7 项（开场署名/76 星 12 区/影廊翻页/本命猫/
-  带照片分享卡/示例校 2 星/算法注记），console 0 error，
+  76 个照片键与 v2.7 解码字节/分片行双重 sha256 清单相同；
+- **托管产物零漂移**：CI 现场构建 `schools/` 并与 Pages 上的 `nuc/ demo/`
+  逐字节比对，模板或数据更新后忘记重建会立即变红；
+- **脏数据前置拒绝**：空编号/重复编号/缺照片目录等新手坑在构建期带行号报错；
+- **浏览器冒烟**：另有本机完整版 7 项（本命猫/分享卡等），
   证据见 [docs/验收证据-M1.md](docs/验收证据-M1.md)。
+
+## 参与贡献
+
+新手友好、无需前端基础：[CONTRIBUTING.md](CONTRIBUTING.md) /
+[快速上手](docs/快速上手.md) / [PR 指南](docs/PR指南.md)，
+也可以先用「[新学校意向](https://github.com/TianWenzzzh/meow-starmap/issues/new/choose)」占坑。
 
 ## 协议（双层）
 

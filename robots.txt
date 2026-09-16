@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://tianwenzzzh.github.io/meow-starmap/sitemap.xml
