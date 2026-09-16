@@ -1,0 +1,21 @@
+{
+  "school": "中北大学",
+  "product": "中北喵星图",
+  "en": "NUC CAT GALAXY",
+  "version": "v2.7",
+  "tagline": "人民兵工第一校的喵星编制 · 每颗星都是一只真实生活的中北猫",
+  "survey_date": "2026-08",
+  "ls_prefix": "nuc",
+  "repo_url": "https://github.com/TianWenzzzh/nuc-cat-starmap",
+  "docs_ref": "SKILL.md",
+  "survey_photo_total": 194,
+  "milestones": [10, 30, 50, 76],
+  "pass_titles": [[0, "初来乍到"], [10, "猫门常客"], [30, "校园通"], [50, "猫学长认证"], [76, "喵星传奇"]],
+  "king_name": "中北猫王",
+  "poster_title": "中北寻猫地图",
+  "poster_file": "中北寻猫海报.png",
+  "export_map_name": "中北大学校园图2023秋季版",
+  "skill_foot_line": "中北大学—校园猫咪档案Skill · 人民兵工第一校的喵星编制",
+  "soul_line": "和它一样：真实、在编、被记录在册的中北猫",
+  "calib_note": "固化校准坐标（2026-08-17 v6 · 全员限定红框核心建成区 x.332-.848/y.164-.827 · 语义聚簇落位 · 手动校准 localStorage 仍优先覆盖）"
+}
