@@ -1,5 +1,9 @@
 # meow-starmap · 校园猫喵星图开放模板
 
+[![CI](https://github.com/TianWenzzzh/meow-starmap/actions/workflows/ci.yml/badge.svg)](https://github.com/TianWenzzzh/meow-starmap/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Data: CC BY-NC-SA 4.0](https://img.shields.io/badge/data-CC%20BY--NC--SA%204.0-ef9421.svg)](DATA-LICENSE)
+
 > 一份名册 CSV + 一个照片文件夹 → 一张**全离线、单文件、可直接发给同学**的校园猫星图。
 > 军训断网也能用，零前端基础也能做。
 
