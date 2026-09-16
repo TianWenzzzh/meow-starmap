@@ -2,8 +2,11 @@
 """P2 硬门禁：v2.7 HTML ↔ token 模板的字节级往返。
 
 把 tests/fixtures/nuc_literals.json 里保存的原始字面量全部灌回
-template/starmap.html，必须与 05 仓库的「中北喵星图.html」逐字节相同
+template/starmap.html，必须与 v2.7 基准「中北喵星图.html」逐字节相同
 （sha256 相等）。差一个空格都算提取器破坏了源文件。
+
+基准文件 248KB（照片外置，仅 2 个内联 SVG），已作为 golden fixture 入库
+tests/fixtures/v27_baseline.html，CI 无需 U 盘总库即可全量运行。
 
 运行：python3 -m unittest discover -s tests -v
 """
@@ -22,13 +25,23 @@ FIXTURES = json.loads(
     (REPO_ROOT / "tests" / "fixtures" / "nuc_literals.json").read_text("utf-8"))
 RULES = FIXTURES["rules"]
 
+VENDORED_BASELINE = REPO_ROOT / "tests" / "fixtures" / "v27_baseline.html"
 
-def _starmap_home() -> Path:
+
+def _baseline_path() -> Path:
+    """基线查找顺序：STARMAP_BASELINE_HTML 显式覆盖 → 入库 golden fixture
+    → STARMAP_HOME 总库 05 原件。fixture 与原件 sha256 由
+    test_source_sha_matches_fixture 锁死。"""
+    env_override = os.environ.get("STARMAP_BASELINE_HTML")
+    if env_override and Path(env_override).exists():
+        return Path(env_override)
+    if VENDORED_BASELINE.exists():
+        return VENDORED_BASELINE
     home = os.environ.get("STARMAP_HOME", "/media/tianwen/KINGSTON/猫咪星图_总库")
     return Path(home) / "05_git仓库_最新v2.6" / "中北喵星图.html"
 
 
-SOURCE_PATH = _starmap_home()
+SOURCE_PATH = _baseline_path()
 
 
 @unittest.skipUnless(SOURCE_PATH.exists(), f"基准文件不存在：{SOURCE_PATH}")

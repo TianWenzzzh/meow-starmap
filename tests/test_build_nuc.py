@@ -5,14 +5,17 @@
   2. CATS 76 条 12 字段，人工小传/亮度等与 v2.7 真值（cats_override）全等；
   3. CALIB 54 键坐标与 v2.7 逐键差 ≤0.02（实测全 0），22 只无键走 basePos；
   4. AREAS/AREA_KEYS/REL/CONST/stars 与数据包全等；
-  5. __PHOTOS 76 键（75 猫照 + 1 底图），每个数据行与 v2.7 分片逐字节相同；
+  5. __PHOTOS 76 键（75 猫照 + 1 底图），解码后字节 sha256 与入库清单
+     tests/fixtures/nuc_photos_sha256.json 全等（CI 无需 05 资产）；
+     本机存在 05 原件时额外做分片逐行字节比对；
   6. 52 条提取规则的原文字面量（整块除外）在产物中逐字保留；
   7. 原创署名与 GitHub 链接存在。
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
-import os
 import re
 import subprocess
 import sys
@@ -20,9 +23,6 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-_HOME = Path(os.environ.get("STARMAP_HOME",
-                            "/media/tianwen/KINGSTON/猫咪星图_总库"))
-SRC_ASSETS = _HOME / "05_git仓库_最新v2.6" / "assets"
 DIST = Path("/tmp/meow-starmap-test/nuc")
 
 STR_FIELDS = ("id", "name", "rank", "title", "coat", "coatGroup",
@@ -42,6 +42,21 @@ def build_once() -> None:
 
 def num(tok: str) -> float:
     return float(tok)
+
+
+_PHOTO_LINE = re.compile(
+    r'__PHOTOS\["(.*)"\]="data:image/(\w+);base64,([^"]*)";')
+
+
+def _collect_photo_bytes(assets_dir: Path) -> dict[str, tuple[str, bytes]]:
+    """解析 photo-data-*.js，返回 {键: (mime, 解码字节)}。"""
+    out: dict[str, tuple[str, bytes]] = {}
+    for f in sorted(assets_dir.glob("photo-data-*.js")):
+        for ln in f.read_text("utf-8").splitlines():
+            m = _PHOTO_LINE.match(ln)
+            if m:
+                out[m.group(1)] = (m.group(2), base64.b64decode(m.group(3)))
+    return out
 
 
 class NucBuildTests(unittest.TestCase):
@@ -130,15 +145,25 @@ class NucBuildTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r'\["CAT-\d+","', sm.group(1))),
                          len(stars))
 
-    def test_photos_76_keys_byte_identical(self) -> None:
-        if not SRC_ASSETS.exists():
-            self.skipTest("总库 05 资产不在本机")
-        src_lines: dict[str, str] = {}
-        for f in sorted(SRC_ASSETS.glob("photo-data-*.js")):
-            for ln in f.read_text("utf-8").splitlines():
-                mm = re.match(r'__PHOTOS\["(.*)"\]=', ln)
-                if mm:
-                    src_lines[mm.group(1)] = ln
+    def test_photos_76_keys_match_sha_manifest(self) -> None:
+        """76 个 __PHOTOS 键解码后必须与 v2.7 字节清单全等
+        （sha256 + 字节数 + mime）。清单入库，CI 无需 05 原件即可跑。"""
+        manifest = json.loads((REPO / "tests" / "fixtures" /
+                               "nuc_photos_sha256.json").read_text("utf-8"))["keys"]
+        got = _collect_photo_bytes(DIST / "assets")
+        self.assertEqual(len(got), 76)
+        self.assertEqual(set(got), set(manifest))
+        for k, (mime, raw) in got.items():
+            want = manifest[k]
+            self.assertEqual(mime, want["mime"], f"{k} mime 漂移")
+            self.assertEqual(len(raw), want["bytes"], f"{k} 字节数漂移")
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), want["sha256"],
+                             f"照片内容变了（EXIF/压缩/替换？）：{k}")
+
+    def test_photos_shards_line_identical_to_manifest(self) -> None:
+        """76 个分片行（含 base64 编码层）逐行 sha256 必须与 v2.7 清单全等。"""
+        manifest = json.loads((REPO / "tests" / "fixtures" /
+                               "nuc_photos_sha256.json").read_text("utf-8"))["keys"]
         got_lines: dict[str, str] = {}
         for f in sorted((DIST / "assets").glob("photo-data-*.js")):
             for ln in f.read_text("utf-8").splitlines():
@@ -146,10 +171,12 @@ class NucBuildTests(unittest.TestCase):
                 if mm:
                     got_lines[mm.group(1)] = ln
         self.assertEqual(len(got_lines), 76)
-        self.assertEqual(set(got_lines), set(src_lines))
-        for k in src_lines:
-            self.assertEqual(got_lines[k], src_lines[k],
-                             f"照片数据行不一致：{k}")
+        self.assertEqual(set(got_lines), set(manifest))
+        for k, line in got_lines.items():
+            self.assertEqual(
+                hashlib.sha256(line.encode("utf-8")).hexdigest(),
+                manifest[k]["line_sha256"],
+                f"分片行与 v2.7 不一致（编码层漂移？）：{k}")
 
     def test_original_literals_preserved(self) -> None:
         """52 条规则 old 原文（整块与已知差异项除外）必须逐字保留。"""
