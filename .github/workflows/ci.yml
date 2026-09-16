@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Inline-script syntax gate (whole repo: templates, pages, shards)
+      - name: "Inline-script syntax gate (whole repo: templates, pages, shards)"
         run: node tools/check_html_scripts.mjs .
 
   browser-smoke:
