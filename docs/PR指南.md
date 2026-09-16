@@ -100,6 +100,10 @@ cp /tmp/nuc/中北喵星图.html nuc/index.html
 cp /tmp/nuc/assets/photo-data-*.js nuc/assets/
 ```
 
-重建后必做：`node tools/check_html_scripts.mjs template/starmap.html gallery index.html nuc/index.html demo/index.html`
+重建后必做：`node tools/check_html_scripts.mjs .`（全仓 HTML 与照片分片语法）
 + 浏览器打开 `/nuc/`、`/demo/` 点一次「影廊」确认照片能解码（见 `docs/screenshots/13、14`）。
+新学校 PR 还需要两处登记：
+`tests/test_hosted_artifacts.py` 的 `HOSTED` 元组（漂移门禁）
+与 `tools/ci_browser_smoke.py` 的期望列表（只数/分片数/按钮 href），
+CI 会自动对新托管页跑 headless 冒烟。
 新学校 PR 合入后，由维护者按同样方式把产物放到 `<短名>/` 并连通展示墙卡片。

@@ -65,7 +65,7 @@ uv run --with pillow tools/build.py --pkg schools/示例校 --out dist/示例校
 ## 质量门禁（本仓库如何保证不翻车）
 
 GitHub Actions（[CI 状态](https://github.com/TianWenzzzh/meow-starmap/actions)）
-在每次 push/PR 跑两条线：**32 项 Python 测试零跳过** + **6 个 HTML 内联脚本语法门禁**，
+在每次 push/PR 跑两条线：**32 项 Python 测试零跳过** + **全仓 HTML/分片语法门禁**，
 以及 headless Chromium 对 `/gallery/ /nuc/ /demo/` 的真实冒烟（开场 → 计数 → 影廊灯箱解码）。
 
 - **字节级往返**：模板由 v2.7 正式版机器提取，把原始数据灌回后与正式版逐字节相同

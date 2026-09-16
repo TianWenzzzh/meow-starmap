@@ -32,8 +32,8 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Inline-script syntax gate (template + gallery + hosted builds)
-        run: node tools/check_html_scripts.mjs template/starmap.html gallery index.html 404.html nuc/index.html demo/index.html
+      - name: Inline-script syntax gate (whole repo: templates, pages, shards)
+        run: node tools/check_html_scripts.mjs .
 
   browser-smoke:
     runs-on: ubuntu-latest

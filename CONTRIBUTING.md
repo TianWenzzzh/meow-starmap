@@ -23,9 +23,11 @@
 
   ```bash
   uv run --python 3.12 --with pillow python -m unittest discover -s tests -v   # 32 项
-  node tools/check_html_scripts.mjs template/starmap.html gallery index.html 404.html nuc/index.html demo/index.html
+  node tools/check_html_scripts.mjs .                                          # 全仓 HTML/分片语法
   uv run --python 3.12 --with playwright python tools/ci_browser_smoke.py       # 可选：浏览器冒烟
   ```
+  新增托管学校时，记得在 `tools/ci_browser_smoke.py` 里加该校的
+  路径/只数/分片期望，并在 `tests/test_hosted_artifacts.py` 的 `HOSTED` 里登记。
 
 ## 数据与许可红线
 
