@@ -24,4 +24,4 @@ jobs:
           node-version: "18"
 
       - name: Inline-script syntax gate (template + gallery + hosted builds)
-        run: node tools/check_html_scripts.mjs template/starmap.html gallery index.html nuc/index.html demo/index.html
+        run: node tools/check_html_scripts.mjs template/starmap.html gallery index.html 404.html nuc/index.html demo/index.html
