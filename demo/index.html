@@ -947,7 +947,7 @@
   </div>
 </div>
 <div id="toast" role="status"></div>
-<script src="assets/photo-data-01.js"></script><script>function PH(p){var k=String(p||"").split("/").pop();return (window.__PHOTOS&&window.__PHOTOS[k])||p}</script><script>
+<script src="assets/photo-data-00.js"></script><script>const __PM={"n":2,"m":{"示例校园星地图.jpg":0,"demo-cat-001.jpg":1,"demo-cat-002.jpg":1}};</script><script>function PH(p){var k=String(p||"").split("/").pop();return (window.__PHOTOS&&window.__PHOTOS[k])||p}</script><script>
 const __PHOTO_BOOT=(typeof __PM!=="undefined")?__PM:null;
 const __PHOTO_JOBS={},__PHOTO_PEND={};
 function __ensureChunk(i){
@@ -983,6 +983,12 @@ function __whenPhoto(p,fn){
   (__PHOTO_PEND[k]||(__PHOTO_PEND[k]=[])).push(fn);
   __ensureChunk(__PHOTO_BOOT.m[k]).catch(()=>{
     if(typeof toast==="function") toast("一张照片分片没加载出来 · 检查网络或用整包版");
+  });
+}
+function __bindLazy(root){
+  root.querySelectorAll("img[data-pkey]").forEach(img=>{
+    if(img.dataset.lbound)return; img.dataset.lbound="1";
+    __whenPhoto(img.dataset.pkey,url=>{ if(img.isConnected) img.src=url; });
   });
 }
 </script>
@@ -2040,8 +2046,9 @@ function openCard(c){
   img.style.display=c.photo?"block":"none";
   if(c.photo){ img.classList.add("loading");                 // 星座徽记占位：加载完淡入
     if(imgWrap) imgWrap.classList.add("loading");
-    img.src=photoSrc(c);
-    if(img.complete&&img.naturalWidth>0) imgDone(); }        // 缓存直出的不闪占位
+    __ensurePhoto(c.photo).then(u=>{ if(selected!==c) return;   // 身份防护：连开猫不串图
+      img.src=u; if(img.complete&&img.naturalWidth>0) imgDone(); })
+      .catch(()=>{ if(selected===c) img.dispatchEvent(new Event("error")); }); }        // 缓存直出的不闪占位
   document.getElementById("cardName").textContent=c.name;
   document.getElementById("cardRank").innerHTML=medalSVG(c.rank,30)+"<span>"+c.rank+(c.title?" · "+c.title:"")+"</span>";
   document.getElementById("cardTitle").textContent=c.id+" ｜ 示例校猫咪编制委员会 · 登记在册";
@@ -2213,7 +2220,7 @@ function makePoster(c){
     const im=new Image();
     im.onload=()=>finish(im);
     im.onerror=()=>finish(null);
-    im.src=photoSrc(c);
+    __ensurePhoto(c.photo).then(u=>{im.src=u;}).catch(()=>finish(null));
     setTimeout(()=>finish(null),3500);                        // 加载超时兜底
   }else finish(null);
 }
@@ -2461,10 +2468,11 @@ function openFind(){
     g.sort((a,b)=>(b.photoCount||1)-(a.photoCount||1));
     return '<div class="fdGroup"><b>'+AREAS[i].t+'</b><span>'+g.length+' 只常驻</span></div>'+
       g.map(c=>'<div class="fRow" data-id="'+c.id+'">'+
-        (c.photo?'<img loading="lazy" src="'+photoSrc(c)+'" alt="'+c.name+'">':'<span class="fdot"></span>')+
+        (c.photo?'<img loading="lazy" data-pkey="'+c.photo.split("/").pop()+'" alt="'+c.name+'">':'<span class="fdot"></span>')+
         '<span class="fi"><span class="fn">'+c.name+'<i style="color:'+rankTier(c.rank).m+'">'+medalSVG(c.rank,12)+c.rank+'</i></span>'+
         '<span class="ff">'+(c.features||"").split("、")[0]+'</span></span></div>').join("");
   }).join("");
+  __bindLazy(document.getElementById("fdBody"));
   findPanel.querySelectorAll(".fRow").forEach(r=>r.onclick=()=>{ closeFind(); openCard(catById(r.dataset.id)); });
   findPanel.classList.add("open"); btnFind.classList.add("on");
   auPluck(587.33,.04);
@@ -2666,9 +2674,10 @@ function openConst(i){
   document.getElementById("cpBody").innerHTML=grp.slice()
     .sort((a,b)=>(b.photoCount||1)-(a.photoCount||1))
     .map(c=>'<div class="fRow" data-id="'+c.id+'">'+
-      (c.photo?'<img loading="lazy" src="'+photoSrc(c)+'" alt="'+c.name+'">':'<span class="fdot"></span>')+
+      (c.photo?'<img loading="lazy" data-pkey="'+c.photo.split("/").pop()+'" alt="'+c.name+'">':'<span class="fdot"></span>')+
       '<span class="fi"><span class="fn">'+c.name+'<i style="color:'+rankTier(c.rank).m+'">'+medalSVG(c.rank,12)+c.rank+'</i></span>'+
       '<span class="ff">'+(c.features||"").split("、")[0]+'</span></span></div>').join("");
+  __bindLazy(document.getElementById("cpBody"));
   constP.querySelectorAll(".fRow").forEach(r=>r.onclick=()=>{ closeConst(); openCard(catById(r.dataset.id)); });
   constP.classList.add("open");
 }
@@ -2684,11 +2693,12 @@ const MORPH={pts:[],t:0,dur:1.05,hold:.62,gone:.55,x:0,y:0,wide:300};
 function startMorph(c,sx,sy){
   MORPH.pts=[]; MORPH.t=0; MORPH.x=sx; MORPH.y=sy;
   if(!c.photo) return;
+  MORPH.cat=c.id;                                  // 身份防护：连开猫时旧图作废
   const small=Math.min(W,H)<700;
   const gw=small?60:96, gh=Math.round(gw*2/3);
   MORPH.wide=small?Math.min(230,W*.72):Math.min(400,W*.34);
   const img=new Image();
-  img.onload=()=>{
+  img.onload=()=>{ if(MORPH.cat!==c.id) return;
     try{
       const cv=document.createElement("canvas"); cv.width=gw; cv.height=gh;
       const g=cv.getContext("2d",{willReadFrequently:true});
@@ -2714,7 +2724,7 @@ function startMorph(c,sx,sy){
     }catch(e){ MORPH.pts=[]; }
   };
   img.onerror=()=>{};
-  img.src=photoSrc(c);
+  __ensurePhoto(c.photo).then(u=>{ if(MORPH.cat===c.id) img.src=u; }).catch(()=>{});
 }
 function drawMorph(dt){
   const M=MORPH; if(!M.pts.length) return;
@@ -2868,11 +2878,12 @@ function sqResult(){
   SOUL.result={cat:best,why};
   document.getElementById("sqDots").innerHTML="";
   document.getElementById("sqBody").innerHTML=
-    (best.photo?"<img class='sqRImg' src='"+photoSrc(best)+"' alt='"+best.name+"'>":"")+
+    (best.photo?"<img class='sqRImg' data-pkey='"+best.photo.split("/").pop()+"' alt='"+best.name+"'>":"")+
     "<div class='sqRName'>"+best.name+"</div>"+
     "<div class='sqRRank'>"+medalSVG(best.rank,18)+" "+best.rank+(best.title?" · "+best.title:"")+"</div>"+
     "<div class='sqRWhy'>"+why+"<br>"+best.bio+"</div>"+
     "<div class='sqRBtns'><div id='sqGo'>→ 去看它的那颗星</div><div id='sqCard'>⤓ 专属卡</div><div id='sqRe'>↺ 再测一次</div></div>";
+  __bindLazy(document.getElementById("sqBody"));
   document.getElementById("sqGo").onclick=()=>{ sqClose(); openCard(best); };
   document.getElementById("sqCard").onclick=()=>makeSoulCard(best,why);
   document.getElementById("sqRe").onclick=sqOpen;
@@ -2930,7 +2941,8 @@ function makeSoulCard(c,why){
     toast("⤓ 本命猫专属卡已生成："+c.name);
   };
   if(c.photo){ const im=new Image();
-    im.onload=()=>finish(im); im.onerror=()=>finish(null); im.src=photoSrc(c); }
+    im.onload=()=>finish(im); im.onerror=()=>finish(null);
+    __ensurePhoto(c.photo).then(u=>im.src=u).catch(()=>finish(null)); }
   else finish(null);
 }
 
@@ -2985,7 +2997,8 @@ function memeOpen(){
     if(selected.photo){ const im=new Image(); im.dataset.id=selected.id;
       im.onload=()=>{ if(MEME.cat===selected){ MEME.img=im; memeRender(); } };
       im.onerror=()=>{ if(MEME.cat===selected){ MEME.img=null; memeRender(); } };
-      im.src=photoSrc(selected); }
+      __ensurePhoto(selected.photo).then(u=>{ if(MEME.cat===selected) im.src=u; })
+        .catch(()=>{ if(MEME.cat===selected){ MEME.img=null; memeRender(); } }); }
   }
   memeRender();
   memePanel.classList.add("open");
@@ -3258,7 +3271,6 @@ addEventListener("keydown",e=>{
 (function(){
   "use strict";
   const $=id=>document.getElementById(id);
-  const pSrc=(typeof photoSrc==="function")?photoSrc:(c=>c.photo);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 
   /* 影廊曲库：有照片的猫，按收录张数优先排 */
@@ -3284,7 +3296,8 @@ addEventListener("keydown",e=>{
     const pre=new Image();
     pre.onload=()=>{ if(lbOpen&&GALLERY[lbIdx]===c){ lbImg.src=pre.src; requestAnimationFrame(()=>lbImg.classList.add("show")); } };
     pre.onerror=()=>{ if(lbOpen&&GALLERY[lbIdx]===c){ lbImg.removeAttribute("src"); toast("这张照片没加载出来 · 左右翻页看看别的"); } };
-    pre.src=pSrc(c);
+    __ensurePhoto(c.photo).then(u=>{ if(lbOpen&&GALLERY[lbIdx]===c) pre.src=u; })
+      .catch(()=>{ if(lbOpen&&GALLERY[lbIdx]===c) pre.onerror(); });
     $("lbName").textContent=c.name;
     $("lbRank").innerHTML=medalSVG(c.rank,15)+"<span style='color:"+rankTier(c.rank).m+"'>"+esc(c.rank)+(c.title?" · "+esc(c.title):"")+"</span>";
     $("lbIdx").textContent=(lbIdx+1)+" / "+GALLERY.length+" ｜ "+c.id+" · 收录 "+(c.photoCount||1)+" 张";
@@ -3295,6 +3308,11 @@ addEventListener("keydown",e=>{
     const i=cat?GALLERY.findIndex(c=>c.id===cat.id):0;
     lbIdx=i>=0?i:0; lbOpen=true; box.classList.add("open");
     document.body.style.overflow="hidden"; lbRender();
+    if(!(navigator.connection&&navigator.connection.saveData)){   // 邻近片预取（尊重省流模式）
+      const ric=self.requestIdleCallback?self.requestIdleCallback.bind(self):setTimeout;
+      [lbIdx-1,lbIdx+1].forEach(j=>{ const pc=GALLERY[(j+GALLERY.length)%GALLERY.length];
+        if(pc) ric(()=>__ensurePhoto(pc.photo).catch(()=>{})); });
+    }
   }
   function closeLightbox(){ lbOpen=false; box.classList.remove("open"); document.body.style.overflow=""; }
   function lbStep(d){ if(!lbOpen) return; lbIdx=(lbIdx+d+GALLERY.length)%GALLERY.length; lbRender(); }
@@ -3347,7 +3365,7 @@ addEventListener("keydown",e=>{
       if(hovered!==peekCat){
         peekCat=hovered;
         if(peekCat.photo){
-          peek.querySelector("img").src=pSrc(peekCat);
+          __ensurePhoto(peekCat.photo).then(u=>{ if(hovered===peekCat&&peek.classList.contains("on")) peek.querySelector("img").src=u; }).catch(()=>{});
           peek.querySelector(".spName").textContent=peekCat.name;
           peek.querySelector(".spRank").innerHTML=medalSVG(peekCat.rank,13)+"<span>"+esc(peekCat.rank)+" · "+esc(peekCat.id)+"</span>";
           peek.classList.add("on");

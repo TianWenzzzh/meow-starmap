@@ -19,10 +19,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 # (数据包目录, 托管目录, 构建出的 HTML 文件名, 该托管产物的分片模式)
-# T4 把托管产物重建为 lazy 后，末列改为 "lazy"。
 HOSTED = [
-    ("schools/nuc", "nuc", "中北喵星图.html", "eager"),
-    ("schools/示例校", "demo", "示例校喵星图.html", "eager"),
+    ("schools/nuc", "nuc", "中北喵星图.html", "lazy"),
+    ("schools/示例校", "demo", "示例校喵星图.html", "lazy"),
 ]
 
 

@@ -86,6 +86,151 @@ function __whenPhoto(p,fn){
 # (name, old, new, expected_count)。T3 在本表追加 §3.3 消费点补丁。
 CODE_PATCHES: list[tuple[str, str, str, int]] = [
     ("photo_loader_runtime", _PH_ANCHOR, _LOADER, 1),
+
+    # ---- §3.3 十个照片消费点异步化（+ §3.3.1 竞态身份防护） ----
+    # 列表绑定器（挂在加载器尾部）；__whenPhoto 已带等待者唤醒
+    ("bind_lazy_helper",
+     '  __ensureChunk(__PHOTO_BOOT.m[k]).catch(()=>{\n'
+     '    if(typeof toast==="function") toast("一张照片分片没加载出来 · 检查网络或用整包版");\n'
+     '  });\n'
+     '}\n'
+     '</script>',
+     '  __ensureChunk(__PHOTO_BOOT.m[k]).catch(()=>{\n'
+     '    if(typeof toast==="function") toast("一张照片分片没加载出来 · 检查网络或用整包版");\n'
+     '  });\n'
+     '}\n'
+     'function __bindLazy(root){\n'
+     '  root.querySelectorAll("img[data-pkey]").forEach(img=>{\n'
+     '    if(img.dataset.lbound)return; img.dataset.lbound="1";\n'
+     '    __whenPhoto(img.dataset.pkey,url=>{ if(img.isConnected) img.src=url; });\n'
+     '  });\n'
+     '}\n'
+     '</script>', 1),
+
+    # 2) 档案卡：ensure + selected 身份校验，失败走既有 onerror 占位
+    ("card_img_async",
+     '  if(c.photo){ img.classList.add("loading");'
+     '                 // 星座徽记占位：加载完淡入\n'
+     '    if(imgWrap) imgWrap.classList.add("loading");\n'
+     '    img.src=photoSrc(c);\n'
+     '    if(img.complete&&img.naturalWidth>0) imgDone(); }'
+     '        // 缓存直出的不闪占位',
+     '  if(c.photo){ img.classList.add("loading");'
+     '                 // 星座徽记占位：加载完淡入\n'
+     '    if(imgWrap) imgWrap.classList.add("loading");\n'
+     '    __ensurePhoto(c.photo).then(u=>{ if(selected!==c) return;'
+     '   // 身份防护：连开猫不串图\n'
+     '      img.src=u; if(img.complete&&img.naturalWidth>0) imgDone(); })\n'
+     '      .catch(()=>{ if(selected===c) img.dispatchEvent(new Event("error")); }); }'
+     '        // 缓存直出的不闪占位', 1),
+
+    # 3) 分享卡 makePoster
+    ("poster_img_async",
+     '    im.onload=()=>finish(im);\n'
+     '    im.onerror=()=>finish(null);\n'
+     '    im.src=photoSrc(c);\n'
+     '    setTimeout(()=>finish(null),3500);',
+     '    im.onload=()=>finish(im);\n'
+     '    im.onerror=()=>finish(null);\n'
+     '    __ensurePhoto(c.photo).then(u=>{im.src=u;}).catch(()=>finish(null));\n'
+     '    setTimeout(()=>finish(null),3500);', 1),
+
+    # 4) 搜索/星宿两个列表：src → data-pkey（出现 2 次）
+    ("list_img_data_pkey",
+     '\'<img loading="lazy" src="\'+photoSrc(c)+\'" alt="\'+c.name+\'">\'',
+     '\'<img loading="lazy" data-pkey="\'+c.photo.split("/").pop()+\'" alt="\'+c.name+\'">\'',
+     2),
+
+    # 4b) 搜索面板渲染后绑定
+    ("find_panel_bind",
+     '  }).join("");\n'
+     '  findPanel.querySelectorAll(".fRow").forEach(r=>r.onclick=()=>{ closeFind(); openCard(catById(r.dataset.id)); });',
+     '  }).join("");\n'
+     '  __bindLazy(document.getElementById("fdBody"));\n'
+     '  findPanel.querySelectorAll(".fRow").forEach(r=>r.onclick=()=>{ closeFind(); openCard(catById(r.dataset.id)); });',
+     1),
+
+    # 5) 星宿面板渲染后绑定
+    ("const_panel_bind",
+     '      \'<span class="ff">\'+(c.features||"").split("、")[0]+\'</span></span></div>\').join("");\n'
+     '  constP.querySelectorAll(".fRow").forEach(r=>r.onclick=()=>{ closeConst(); openCard(catById(r.dataset.id)); });',
+     '      \'<span class="ff">\'+(c.features||"").split("、")[0]+\'</span></span></div>\').join("");\n'
+     '  __bindLazy(document.getElementById("cpBody"));\n'
+     '  constP.querySelectorAll(".fRow").forEach(r=>r.onclick=()=>{ closeConst(); openCard(catById(r.dataset.id)); });',
+     1),
+
+    # 6) 星尘变身：MORPH 身份 + onload 守卫 + ensure
+    ("morph_identity",
+     '  if(!c.photo) return;\n  const small=Math.min(W,H)<700;',
+     '  if(!c.photo) return;\n'
+     '  MORPH.cat=c.id;                                  // 身份防护：连开猫时旧图作废\n'
+     '  const small=Math.min(W,H)<700;', 1),
+    ("morph_onload_guard",
+     '  img.onload=()=>{\n    try{',
+     '  img.onload=()=>{ if(MORPH.cat!==c.id) return;\n    try{', 1),
+    ("morph_img_async",
+     '  img.onerror=()=>{};\n  img.src=photoSrc(c);\n}',
+     '  img.onerror=()=>{};\n'
+     '  __ensurePhoto(c.photo).then(u=>{ if(MORPH.cat===c.id) img.src=u; }).catch(()=>{});\n}',
+     1),
+
+    # 7) 本命猫结果图 data-pkey + 绑定
+    ("soul_result_data_pkey",
+     '"<img class=\'sqRImg\' src=\'"+photoSrc(best)+"\' alt=\'"+best.name+"\'>"',
+     '"<img class=\'sqRImg\' data-pkey=\'"+best.photo.split("/").pop()+"\' alt=\'"+best.name+"\'>"',
+     1),
+    ("soul_result_bind",
+     '    "<div class=\'sqRBtns\'><div id=\'sqGo\'>→ 去看它的那颗星</div><div id=\'sqCard\'>⤓ 专属卡</div><div id=\'sqRe\'>↺ 再测一次</div></div>";\n'
+     '  document.getElementById("sqGo").onclick=()=>{ sqClose(); openCard(best); };',
+     '    "<div class=\'sqRBtns\'><div id=\'sqGo\'>→ 去看它的那颗星</div><div id=\'sqCard\'>⤓ 专属卡</div><div id=\'sqRe\'>↺ 再测一次</div></div>";\n'
+     '  __bindLazy(document.getElementById("sqBody"));\n'
+     '  document.getElementById("sqGo").onclick=()=>{ sqClose(); openCard(best); };',
+     1),
+
+    # 8) 本命卡 canvas 取图
+    ("soul_card_img_async",
+     '  if(c.photo){ const im=new Image();\n'
+     '    im.onload=()=>finish(im); im.onerror=()=>finish(null); im.src=photoSrc(c); }',
+     '  if(c.photo){ const im=new Image();\n'
+     '    im.onload=()=>finish(im); im.onerror=()=>finish(null);\n'
+     '    __ensurePhoto(c.photo).then(u=>im.src=u).catch(()=>finish(null)); }', 1),
+
+    # 9) 表情包工坊取图（复用既有 MEME.cat 身份）
+    ("meme_img_async",
+     '      im.onerror=()=>{ if(MEME.cat===selected){ MEME.img=null; memeRender(); } };\n'
+     '      im.src=photoSrc(selected); }',
+     '      im.onerror=()=>{ if(MEME.cat===selected){ MEME.img=null; memeRender(); } };\n'
+     '      __ensurePhoto(selected.photo).then(u=>{ if(MEME.cat===selected) im.src=u; })\n'
+     '        .catch(()=>{ if(MEME.cat===selected){ MEME.img=null; memeRender(); } }); }',
+     1),
+
+    # 10) 影廊灯箱：ensure 复用既有 GALLERY[lbIdx] 身份
+    ("lightbox_p_src_drop",
+     '  const pSrc=(typeof photoSrc==="function")?photoSrc:(c=>c.photo);\n', "", 1),
+    ("lightbox_img_async",
+     '    pre.onerror=()=>{ if(lbOpen&&GALLERY[lbIdx]===c){ lbImg.removeAttribute("src"); toast("这张照片没加载出来 · 左右翻页看看别的"); } };\n'
+     '    pre.src=pSrc(c);',
+     '    pre.onerror=()=>{ if(lbOpen&&GALLERY[lbIdx]===c){ lbImg.removeAttribute("src"); toast("这张照片没加载出来 · 左右翻页看看别的"); } };\n'
+     '    __ensurePhoto(c.photo).then(u=>{ if(lbOpen&&GALLERY[lbIdx]===c) pre.src=u; })\n'
+     '      .catch(()=>{ if(lbOpen&&GALLERY[lbIdx]===c) pre.onerror(); });', 1),
+    ("lightbox_prefetch",
+     '    lbIdx=i>=0?i:0; lbOpen=true; box.classList.add("open");\n'
+     '    document.body.style.overflow="hidden"; lbRender();\n  }',
+     '    lbIdx=i>=0?i:0; lbOpen=true; box.classList.add("open");\n'
+     '    document.body.style.overflow="hidden"; lbRender();\n'
+     '    if(!(navigator.connection&&navigator.connection.saveData)){'
+     '   // 邻近片预取（尊重省流模式）\n'
+     '      const ric=self.requestIdleCallback?self.requestIdleCallback.bind(self):setTimeout;\n'
+     '      [lbIdx-1,lbIdx+1].forEach(j=>{ const pc=GALLERY[(j+GALLERY.length)%GALLERY.length];\n'
+     '        if(pc) ric(()=>__ensurePhoto(pc.photo).catch(()=>{})); });\n    }\n  }', 1),
+
+    # 10b) 星星悬停预告：ensure + hovered 身份
+    ("peek_img_async",
+     '        if(peekCat.photo){\n'
+     '          peek.querySelector("img").src=pSrc(peekCat);\n',
+     '        if(peekCat.photo){\n'
+     '          __ensurePhoto(peekCat.photo).then(u=>{ if(hovered===peekCat&&peek.classList.contains("on")) peek.querySelector("img").src=u; }).catch(()=>{});\n',
+     1),
 ]
 
 _BOOTSTRAP_RE = re.compile(
