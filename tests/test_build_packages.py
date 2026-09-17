@@ -148,10 +148,14 @@ class InjectionSafetyTests(unittest.TestCase):
             self.assertIn("底图文件名不安全", r.stderr + r.stdout)
 
     def test_js_escaping_neutralizes_html_breakout(self) -> None:
+        # T6 F7 后转义实现在 vendor 的 starmap_render（build.py 只做装配）
+        tools_dir = str(REPO / "tools")
+        if tools_dir not in sys.path:
+            sys.path.insert(0, tools_dir)   # vendor 模块要同目录 starmap_layout
         spec = importlib.util.spec_from_file_location(
-            "starmap_build", REPO / "tools" / "build.py")
+            "starmap_render_vendored", REPO / "tools" / "starmap_render.py")
         mod = importlib.util.module_from_spec(spec)
-        sys.modules["starmap_build"] = mod   # dataclass 注解解析需要模块已注册
+        sys.modules["starmap_render_vendored"] = mod
         spec.loader.exec_module(mod)  # type: ignore[union-attr]
         evil = '"</script><script>alert(1)</script>'
         s = mod.js_str(evil)

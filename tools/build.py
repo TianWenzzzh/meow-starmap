@@ -72,52 +72,11 @@ ALIASES = {
     "备注": ("备注", "note", "说明"),
 }
 
-# ---------- 注入转义（vendor: app/injector.py，注释一字未删） ----------
-
-def js_str(s) -> str:
-    """拼进 JS 双引号字符串字面量的值。
-
-    json.dumps 负责 `"` `\\` 和控制字符；再补三件它不管的事：`</` 会让
-    `</script>` 提前收掉整个脚本块，U+2028/2029 在 JS 里是行终止符。
-    """
-    body = json.dumps(str(s if s is not None else ""), ensure_ascii=False)
-    return (body[1:-1].replace("</", "<\\/")
-            .replace(" ", "\\u2028").replace(" ", "\\u2029"))
-
-
-def js(obj) -> str:
-    """JSON → 可安全嵌入 <script> 的字符串。"""
-    s = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
-    return s.replace("</", "<\\/").replace(" ", "\\u2028") \
-            .replace(" ", "\\u2029")
-
-
-def photo_line(name: str, blob: bytes) -> str:
-    b64 = base64.b64encode(blob).decode("ascii")
-    return f'__PHOTOS[{js(name)}]="data:image/jpeg;base64,{b64}";'
-
-
-def _photo_line_len(name: str, nbytes: int) -> int:
-    """不拿到字节也算得准的行长：base64 长度恒为 4*ceil(n/3)。"""
-    return len(photo_line(name, b"")) + 4 * ((nbytes + 2) // 3)
-
-
-def chunk_plan(sizes, chunk_bytes: int = CHUNK_BYTES):
-    """(名字, 字节数) → 每个分片装哪些名字。分片边界的唯一真相。"""
-    groups: list[list[str]] = [[]]
-    size = 0
-    for name, nbytes in sorted(sizes):
-        n = _photo_line_len(name, nbytes)
-        if size + n > chunk_bytes and groups[-1]:
-            groups.append([])
-            size = 0
-        groups[-1].append(name)
-        size += n
-    return [g for g in groups if g]
-
-
-def chunk_text(lines: list[str]) -> str:
-    return "window.__PHOTOS=window.__PHOTOS||{};\n" + "\n".join(lines) + "\n"
+# ---------- 渲染（T6 F7 反向 vendor：上游真相 = 工厂 starmap_render） ----------
+# 注入转义、JS 数据块渲染、分片规划全部收敛到 tools/starmap_render.py
+# （vendor 自 catgalaxy-factory，见该文件头）；本文件只做数据装配与落盘。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from starmap_render import V29RenderInput, render  # noqa: E402
 
 
 # ---------- CSV（vendor: app/csv_loader.py 简化，去 pydantic） ----------
@@ -669,145 +628,29 @@ def main() -> int:
                 and "</script" not in _tag.lower()):
             raise SystemExit(f"{_label} 只允许单个 <img> 标签")
 
-    js_ms = "[" + ",".join(str(int(x)) for x in ms) + "]"
-    js_titles = "[" + ",".join(
-        f'[{int(t)},"{js_str(t_name)}"]' for t, t_name in pass_titles) + "]"
+    # ---------- 渲染（T6 F7 反向 vendor：唯一渲染真相 = starmap_render） ----------
+    # CATS.photo 统一为 assets/photos/ 前缀（渲染器按现值输出，不再自拼）
+    for c in cats:
+        if c["photo"] and not c["photo"].startswith("assets/photos/"):
+            c["photo"] = "assets/photos/" + c["photo"]
 
-    # 复合 rule 的 new → 最终值（与 fixtures rules 顺序一一对应）
-    # F11 的规则 new 是「锚点+token」（如 </style>__THEME_CSS__），故渲染值
-    # 必须带回锚点原文；默认空内容时整段还原为 v28 锚点，字节零差异。
-    rule_values = {
-        "theme_css": "</style>" + f11_theme_css,
-        "logo_intro": '<div id="intro">' + f11_logo_intro,
-        "logo_topbar": '<div class="brand">' + f11_logo_topbar,
-        "copy_line": f"  原创作品 © 2026 TianWenzzzh ｜ {n} 只猫的普查数据与 "
-                     f"{p_total} 张照片均为实地采集",
-        "meta_desc": f'<meta name="description" content="{product}：{n} 只'
-                     f'{school}校园猫的实地普查星图。'
-                     f'每只猫是一颗星——星色取毛色、星等看实拍数、'
-                     f'星位即真实出没区。原创开源：{repo_display}">',
-        "title_tag": f"<title>{product} · 校园猫咪星系</title>",
-        "tagline": tagline,
-        "stats_line": f"{short}校园实地普查 ｜ {n} 只在编基米 ｜ "
-                      f"{p_total} 张学长学姐实拍",
-        "guide_bound": f"档案数据仅覆盖{school}（{survey_date} 实地普查 {n} 只），"
-                       f"别校的猫查不到；玩法谁都可用，想给母校复刻一份，"
-                       f"完整流程在 {docs_ref}。",
-        "guide_reuse": f"档案数据不能（那是{short}的猫），方法论可以："
-                       f"普查、归并、建星图到打包的完整流程都写在 {docs_ref} 里。",
-        "guide_accuracy": f"{p_total} 张照片逐张比对归并出 {n} 只，"
-                          f"存疑的一律不收；每一条取舍都记在"
-                          f"《归并决策摘要.md》，欢迎抽查。",
-        "stats_foot": f"数据源：猫咪名册.csv · {survey_date} 实地普查 · "
-                      f"仅{short}校园<br>星色 = 毛色 ｜ 环绕光点 = 收录照片数",
-        "banner_sub": f" * 底图: {map_file} | 数据: CATS（{n}只真猫名册 · "
-                      f"{survey_date}普查）",
-        "cats_lead_comment": f"// ---- 真实名册数据（build.py 自名册 CSV 注入 · "
-                             f"{n} 只在编 · {survey_date} 普查）----",
-        "calib_lead_comment": f"/* {calib_lead} */",
-        "map_src": f'const MAP_SRC = "{map_file}";',
-        "ls_key": f'const LS_KEY  = "{ls_prefix}-cat-galaxy-positions";',
-        "js_title": f'const TITLE="{product}";',
-        "ls_fx": f'"{ls_prefix}-cat-fx"',
-        "ls_seen": f'"{ls_prefix}-cat-seen"',
-        "ls_tip": f'"{ls_prefix}-cat-tip-dismiss"',
-        "card_title_expr": f'c.id+" ｜ {committee} · 登记在册"',
-        "card_meta_expr": f'"{survey_date} 实地普查 · 第 "+(+c.id.slice(4))+" 号星"',
-        "export_map_name": f'map:"{export_map_name}"',
-        "milestones": js_ms,
-        "pass_titles": js_titles,
-        "milestone_toast": f'm==={n}?"🏆 喵图鉴全收集！你就是{king_name}！"',
-        "clear_filter": f'cb.textContent="清筛选 · 看全部{n}只"',
-        "poster_title": f'g.fillText("{poster_title}",pw/2,118)',
-        "poster_sub": '"跟着星图走遍它们的地盘 · "+CATS.length+" 只在编基米 · '
-                      f'{survey_date} 实地普查"',
-        "poster_open_hint": f"打开「{product}」点击任意星星，"
-                            f"即可查看它的档案与出没星域",
-        "skill_foot_line": skill_foot,
-        "poster_file": f'a.download="{poster_file}"',
-        "rec_badge": '" ｜ 图鉴 "+SEEN.size+"/"+CATS.length+" ｜ '
-                     f'{product}"',
-        "soul_line": soul_line,
-        "soul_meta": f'"{n}只在编基米 · {survey_date}实地普查 · 图鉴 "'
-                     f"+SEEN.size+\"/\"+CATS.length",
-        "meme_brand": f'"{product}原创 · "+(MEME.cat?MEME.cat.name:"")',
-        "passport_hint": f"打开「{product}」· 按十二星宿寻访 · 遇见即可盖章",
-        "console_line1": f"%c🐱 {product} · {en} {version}",
-        "console_line2": f"%c原创作品 © 2026 TianWenzzzh · {n} 只猫的实地"
-                         f"普查档案\\n开源仓库：{repo_url}\\n转载请署名并附仓库"
-                         f"链接 · 一起给更多学校点亮喵星系 ✦",
-        "chip_all": f'>全部<b class="n">{n}</b>',
-        "seen_ring": f"已遇见 0 / {n}",
-        "repo_url": repo_url,
-        "repo_display": repo_display,
-        "product": product,
-        "en": en,
-        "version": version,
-    }
-    block_values = {
-        "cats_block": render_cats(cats),
-        "calib_block": render_calib(calib),
-        "areas_block": render_areas(areas),
-        "area_keys_block": render_area_keys(area_keys),
-        "rel_block": render_rel(rel),
-        "const_block": render_const(consts),
-        "poster_stars": render_poster_stars(stars),
-    }
-
-    # --- 分片（先算片数，才能渲染 script 标签） ---
-    if photo_loading == "lazy":
-        # 00 关键片=底图（星图画布启动即 PH(MAP_SRC)，必须 eager）；
-        # 猫照片按 ≤1.5MB 分 01..N 懒片，HTML 不引用，由运行时加载器按清单取。
-        groups = [[map_file]] + chunk_plan(
-            [(k, len(v)) for k, v in blobs.items() if k != map_file])
-        key_chunk = {k: i for i, g in enumerate(groups) for k in g}
-        tags = ('<script src="assets/photo-data-00.js"></script>'
-                '<script>const __PM='
-                + js({"n": len(groups), "m": key_chunk}) + ";</script>")
-    else:
-        # eager：v2.7 旧整包布局，全部片立即加载（编号 01 起，历史产物字节一致）
-        groups = chunk_plan([(name, len(blob)) for name, blob in blobs.items()])
-        tags = "".join(
-            f'<script src="assets/photo-data-{i:02d}.js"></script>'
-            for i in range(1, len(groups) + 1))
-
-    # --- 按 fixtures 规则顺序替换 ---
-    fx_path = REPO_ROOT / "tests" / "fixtures" / "nuc_literals.json"
-    rules = json.loads(fx_path.read_text("utf-8"))["rules"]
-    html = TEMPLATE_PATH.read_text("utf-8")
-    for r in rules:
-        name, token = r["name"], r["new"]
-        if name == "photo_scripts":
-            value = tags
-        elif name in block_values:
-            value = block_values[name]
-        else:
-            value = rule_values.get(name)
-            if value is None:
-                raise SystemExit(f"未提供规则 {name} 的渲染值")
-        if token not in html:
-            raise SystemExit(f"模板中找不到 token（{name}）：{token}")
-        if html.count(token) != int(r["count"]):
-            raise SystemExit(
-                f"token {name} 出现 {html.count(token)} 次，"
-                f"与提取器凭据 {r['count']} 不一致——模板/凭据版本漂移")
-        html = html.replace(token, value)
-
-    # 无独立规则的叶子（独立出现点 + 复合 new 内嵌点）
-    for token, value in (
-        ("__CAT_COUNT__", str(n)),
-        ("__PHOTO_COUNT__", str(p_total)),
-        ("__SURVEY_DATE__", survey_date),
-        ("__LS_PREFIX__", ls_prefix),
-        ("__MAP_FILE__", map_file),
-        ("__KING_NAME__", king_name),
-        ("__COMMITTEE__", committee),
-    ):
-        html = html.replace(token, value)
-
-    leftover = re.findall(r"__[A-Z_]+__", html)
-    if leftover:
-        raise SystemExit("产物残留未替换 token：" + ", ".join(sorted(set(leftover))))
+    inp = V29RenderInput(
+        school=school, cats=cats, photos=blobs, map_bytes=map_blob,
+        map_key=map_file, calib=calib, photo_loading=photo_loading,
+        product=product, en=en, version=version, tagline=tagline,
+        survey_date=survey_date, photo_total=p_total, ls_prefix=ls_prefix,
+        repo_url=repo_url, docs_ref=docs_ref,
+        theme_css=f11_theme_css, logo_intro=f11_logo_intro,
+        logo_topbar=f11_logo_topbar,
+        milestones=ms, pass_titles=pass_titles,
+        king_name=king_name, poster_title=poster_title,
+        poster_file=poster_file, export_map_name=export_map_name,
+        skill_foot_line=skill_foot, soul_line=soul_line,
+        calib_note=calib_lead,
+        areas=areas, area_keys=area_keys, rel=rel, consts=consts,
+        poster_stars=stars)
+    bundle = render(inp)
+    html = bundle.html
 
     # --- 落盘 ---
     out = Path(args.out)
@@ -815,13 +658,10 @@ def main() -> int:
     if assets.exists():
         shutil.rmtree(assets)
     assets.mkdir(parents=True, exist_ok=True)
-    first_idx = 0 if photo_loading == "lazy" else 1
-    for i, group in enumerate(groups, start=first_idx):
-        lines = [photo_line(k, blobs[k]) for k in group]
+    for name, text in bundle.iter_chunks(lambda k: blobs[k]):
         # newline 固定 LF：托管产物门禁要求任意平台构建逐字节一致
-        (assets / f"photo-data-{i:02d}.js").write_text(
-            chunk_text(lines), "utf-8", newline="\n")
-    (out / f"{product}.html").write_text(html, "utf-8", newline="\n")
+        (assets / name).write_text(text, "utf-8", newline="\n")
+    (out / f"{product}.html").write_text(bundle.html, "utf-8", newline="\n")
     d_out = out / "data"
     d_out.mkdir(exist_ok=True)
     shutil.copy2(csv_path, d_out / "猫咪名册.csv")
@@ -832,7 +672,7 @@ def main() -> int:
     print(f"✓ {product} 构建完成 → {out.resolve()}")
     print(f"  猫 {n} 只 · 照片 {len(need)} 个文件（重压缩 {recompressed}"
           f" 张）· 底图{'重压缩' if map_changed else '原样'} · "
-          f"分片 {len(groups)} 个 · CALIB {len(calib)} 键 · "
+          f"分片 {len(bundle.groups)} 个 · CALIB {len(calib)} 键 · "
           f"星域 {len(areas)} · 星宿 {len(consts)}")
     print(f"  打开方式：直接双击 {product}.html（全离线，无需服务器）")
     return 0
