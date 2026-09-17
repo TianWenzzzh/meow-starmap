@@ -100,7 +100,13 @@ GitHub Actions（[CI 状态](https://github.com/TianWenzzzh/meow-starmap/actions
 - 🏛 [TianWenzzzh/nuc-cat-starmap](https://github.com/TianWenzzzh/nuc-cat-starmap)
   —— 中北喵星图正式版（v2.7），本模板的字节级来源
 - 🛠 [TianWenzzzh/catgalaxy-factory](https://github.com/TianWenzzzh/catgalaxy-factory)
-  —— 喵星图工厂（FastAPI 在线生成器），本项目的 CSV 契约与落位算法上游
+  —— 喵星图工厂（FastAPI 在线生成器），本项目的 CSV 契约与落位算法上游；
+  T6 收敛后更是**渲染唯一真相**：本仓 `tools/starmap_render.py` 是其
+  `app/starmap_render.py` 的 vendor 快照（sha256 由 tests/test_vendor_snapshot.py 锁定，
+  升级走「改工厂 → 同步快照 → 发版」）
+- 🏫 [TianWenzzzh/nuc-cat-starmap](https://github.com/TianWenzzzh/nuc-cat-starmap)
+  —— 中北大学实例（nuc/ 托管产物的来源校），v2.8 起产物由工厂渲染器直出、
+  与本仓 `nuc/` 逐字节一致
 - 本仓库为纯离线本地模板；原第三方托管在线版已下线，自己构建的产物可免费部署到
   GitHub Pages。
 
