@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""v2.7 正式版 HTML → 开放 token 模板（一次性提取器，可复跑）。
+"""v2.7 正式版 HTML → 开放 token 模板（历史提取器，可复跑）。
+
+现役模板已演进到 v2.8-lazy，基线生成走 tools/make_v28_baseline.py；
+本脚本仅用于复核 v2.7 提取真相（配套 tests/fixtures/nuc_literals.v27.json
+与 v27_template.html 的历史往返测试）。
 
 输入：05 仓库的「中北喵星图.html」（3605 行 v2.7，只读基准）
 输出：

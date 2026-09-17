@@ -579,11 +579,11 @@ def main() -> int:
     p_total = opt(args.photo_count, "survey_photo_total", photo_sum)
 
     # 照片分片加载策略：CLI --photo-loading / --eager-photos 压过 build_meta；
-    # T1 阶段缺省 eager（与 v2.7 历史产物字节一致），模板 v28 起翻为 lazy。
+    # v2.8 起缺省 lazy（底图关键片 eager + 猫照片按需取）；--eager-photos 出旧整包。
     photo_loading = args.photo_loading or meta.get("photo_loading")
     if args.eager_photos:
         photo_loading = "eager"
-    photo_loading = photo_loading or "eager"
+    photo_loading = photo_loading or "lazy"
     if photo_loading not in ("eager", "lazy"):
         raise SystemExit(
             f"photo_loading 非法：{photo_loading!r}（仅支持 eager/lazy）")

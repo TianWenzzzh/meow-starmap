@@ -18,10 +18,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 
-# (数据包目录, 托管目录, 构建出的 HTML 文件名)
+# (数据包目录, 托管目录, 构建出的 HTML 文件名, 该托管产物的分片模式)
+# T4 把托管产物重建为 lazy 后，末列改为 "lazy"。
 HOSTED = [
-    ("schools/nuc", "nuc", "中北喵星图.html"),
-    ("schools/示例校", "demo", "示例校喵星图.html"),
+    ("schools/nuc", "nuc", "中北喵星图.html", "eager"),
+    ("schools/示例校", "demo", "示例校喵星图.html", "eager"),
 ]
 
 
@@ -30,13 +31,15 @@ def _sha(path: Path) -> str:
 
 
 class HostedArtifactDriftTests(unittest.TestCase):
-    def _check_one(self, pkg: str, hosted: str, html_name: str) -> None:
+    def _check_one(self, pkg: str, hosted: str, html_name: str,
+                   loading: str) -> None:
         with tempfile.TemporaryDirectory(prefix="hosted-drift-") as td:
             out = Path(td)
+            cmd = [sys.executable, str(REPO / "tools" / "build.py"),
+                   "--pkg", str(REPO / pkg), "--out", str(out),
+                   "--photo-loading", loading]
             proc = subprocess.run(
-                [sys.executable, str(REPO / "tools" / "build.py"),
-                 "--pkg", str(REPO / pkg), "--out", str(out)],
-                capture_output=True, text=True, cwd=str(REPO))
+                cmd, capture_output=True, text=True, cwd=str(REPO))
             self.assertEqual(proc.returncode, 0,
                              f"构建 {pkg} 失败：\n{proc.stderr[-800:]}")
 

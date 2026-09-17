@@ -947,7 +947,45 @@
   </div>
 </div>
 <div id="toast" role="status"></div>
-__PHOTO_SCRIPTS__<script>function PH(p){var k=String(p||"").split("/").pop();return (window.__PHOTOS&&window.__PHOTOS[k])||p}</script>
+__PHOTO_SCRIPTS__<script>function PH(p){var k=String(p||"").split("/").pop();return (window.__PHOTOS&&window.__PHOTOS[k])||p}</script><script>
+const __PHOTO_BOOT=(typeof __PM!=="undefined")?__PM:null;
+const __PHOTO_JOBS={},__PHOTO_PEND={};
+function __ensureChunk(i){
+  if(__PHOTO_JOBS[i]) return __PHOTO_JOBS[i];
+  const job=new Promise((res,rej)=>{
+    const s=document.createElement("script");
+    s.src="assets/photo-data-"+String(i).padStart(2,"0")+".js";
+    s.onload=()=>{__flushPhotoJobs(i);res();};
+    s.onerror=()=>{delete __PHOTO_JOBS[i];rej(new Error("photo chunk "+i));};
+    document.head.appendChild(s);
+  });
+  __PHOTO_JOBS[i]=job; return job;
+}
+function __flushPhotoJobs(i){
+  if(!__PHOTO_BOOT) return;
+  for(const k of Object.keys(__PHOTO_BOOT.m)){
+    if(__PHOTO_BOOT.m[k]!==i||!(window.__PHOTOS&&__PHOTOS[k])) continue;
+    const q=__PHOTO_PEND[k]; if(q){delete __PHOTO_PEND[k];q.forEach(fn=>fn(__PHOTOS[k]));}
+  }
+}
+function __ensurePhoto(p){
+  const k=String(p==null?"":p).split("/").pop();
+  if(window.__PHOTOS&&__PHOTOS[k]) return Promise.resolve(__PHOTOS[k]);
+  if(!__PHOTO_BOOT) return Promise.resolve(PH(p));
+  const i=__PHOTO_BOOT.m[k];
+  if(i==null) return Promise.resolve(PH(p));
+  return __ensureChunk(i).then(()=>(window.__PHOTOS&&__PHOTOS[k])||PH(p));
+}
+function __whenPhoto(p,fn){
+  const k=String(p==null?"":p).split("/").pop();
+  if(window.__PHOTOS&&__PHOTOS[k]){fn(__PHOTOS[k]);return;}
+  if(!__PHOTO_BOOT||__PHOTO_BOOT.m[k]==null){fn(PH(p));return;}
+  (__PHOTO_PEND[k]||(__PHOTO_PEND[k]=[])).push(fn);
+  __ensureChunk(__PHOTO_BOOT.m[k]).catch(()=>{
+    if(typeof toast==="function") toast("一张照片分片没加载出来 · 检查网络或用整包版");
+  });
+}
+</script>
 <div id="tipBar" role="status" hidden>
   <span id="tipTxt"></span>
   <span class="chip" id="tipGo" tabindex="0" role="button">⇧ 备份进度码</span>

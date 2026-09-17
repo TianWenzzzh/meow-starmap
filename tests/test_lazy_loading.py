@@ -120,14 +120,21 @@ class DemoEagerLayoutTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_eager_keeps_legacy_layout(self) -> None:
-        tags = SCRIPT_SRC.findall(self.html)
-        self.assertEqual(tags, ["assets/photo-data-01.js"], tags)  # 旧编号 01 起
-        self.assertNotIn("const __PM=", self.html)
-        # 旧布局 3 键同片
-        self.assertEqual(
-            set(self.shards["photo-data-01.js"]),
-            {"示例校园星地图.jpg", "demo-cat-001.jpg",
-             "demo-cat-002.jpg"})
+        with tempfile.TemporaryDirectory() as td:
+            t = Path(td)
+            out = t / "demo-eager"
+            r = run_build(REPO / "schools" / "示例校", out, "--eager-photos")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            html = (out / "示例校喵星图.html").read_text("utf-8")
+            shards = parse_shards(out / "assets")
+            tags = SCRIPT_SRC.findall(html)
+            self.assertEqual(tags, ["assets/photo-data-01.js"], tags)  # 旧编号 01 起
+            self.assertNotIn("const __PM=", html)
+            # 旧布局 3 键同片
+            self.assertEqual(
+                set(shards["photo-data-01.js"]),
+                {"示例校园星地图.jpg", "demo-cat-001.jpg",
+                 "demo-cat-002.jpg"})
 
     def test_eager_flag_overrides_lazy_meta(self) -> None:
         with tempfile.TemporaryDirectory() as td:
