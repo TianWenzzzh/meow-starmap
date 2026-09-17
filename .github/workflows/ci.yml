@@ -50,8 +50,11 @@ jobs:
       - name: Install Chromium for Playwright
         run: uv run --python 3.12 --with playwright python -m playwright install --with-deps chromium
 
-      - name: Headless browser smoke (gallery + /demo/ + /nuc/ lightbox)
+      - name: Headless browser smoke (http: gallery + /demo/ + /nuc/ lazy chunks)
         run: uv run --python 3.12 --with playwright python tools/ci_browser_smoke.py
+
+      - name: Headless browser smoke (file:// offline double-click red line)
+        run: uv run --python 3.12 --with playwright python tools/ci_browser_smoke.py --file
 
       - name: Upload smoke screenshots on failure
         if: failure()
