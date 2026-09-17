@@ -186,7 +186,9 @@ def main() -> int:
                 btns = g.evaluate(
                     "Array.from(document.querySelectorAll('.mini'))"
                     ".map(a=>a.getAttribute('href'))")
-                if len(btns) != 4 or any(not b for b in btns):
+                # 每校卡片 2 个 + 页尾 1 个；M2 起另含「申请收录/种子流程」入口，
+                # 故只卡下限与有效性，不锁死总数
+                if len(btns) < 4 or any(not b for b in btns):
                     failures.append(f"/gallery/ 按钮集合异常：{btns}")
                 covers = g.evaluate(
                     "Array.from(document.images).map(i=>i.naturalWidth)")
