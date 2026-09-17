@@ -66,7 +66,7 @@ class HostedArtifactDriftTests(unittest.TestCase):
 
             # 3) 托管目录不得混入其它文件（只允许 index.html + assets/*.js）
             allowed = {"index.html"} | {f"assets/{n}" for n in hosted_js}
-            actual = {str(p.relative_to(hosted_dir))
+            actual = {p.relative_to(hosted_dir).as_posix()
                       for p in hosted_dir.rglob("*") if p.is_file()}
             self.assertEqual(actual - allowed, set(),
                              f"{hosted}/ 存在非构建产物文件：{actual - allowed}")

@@ -818,9 +818,10 @@ def main() -> int:
     first_idx = 0 if photo_loading == "lazy" else 1
     for i, group in enumerate(groups, start=first_idx):
         lines = [photo_line(k, blobs[k]) for k in group]
+        # newline 固定 LF：托管产物门禁要求任意平台构建逐字节一致
         (assets / f"photo-data-{i:02d}.js").write_text(
-            chunk_text(lines), "utf-8")
-    (out / f"{product}.html").write_text(html, "utf-8")
+            chunk_text(lines), "utf-8", newline="\n")
+    (out / f"{product}.html").write_text(html, "utf-8", newline="\n")
     d_out = out / "data"
     d_out.mkdir(exist_ok=True)
     shutil.copy2(csv_path, d_out / "猫咪名册.csv")
