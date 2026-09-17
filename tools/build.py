@@ -8,6 +8,10 @@
   # 散件模式：
   uv run --with pillow tools/build.py --school 示例校 \\
       --data roster.csv --photos photos/ --map map.jpg --out dist/demo
+  # 照片懒加载（底图 00 关键片 eager，猫照片分片按交互取；需 v28+ 模板）：
+  uv run --with pillow tools/build.py --pkg schools/nuc --out dist/nuc --photo-loading lazy
+  # 强制旧整包（覆盖 build_meta 的 photo_loading，群文件/U 盘分发用）：
+  uv run --with pillow tools/build.py --pkg schools/nuc --out dist/nuc --eager-photos
 
 数据包目录约定：
   <pkg>/data/猫咪名册.csv        12 列名册（utf-8-sig）
@@ -494,6 +498,11 @@ def main() -> int:
     ap.add_argument("--docs-ref")
     ap.add_argument("--photo-count", type=int,
                     help="普查照片总量文案（缺省=名册照片数合计）")
+    ap.add_argument("--photo-loading", choices=["eager", "lazy"], default=None,
+                    help="照片分片加载：eager=旧整包全量立即加载（缺省）；"
+                         "lazy=仅底图关键片 eager，猫照片按交互动态取片")
+    ap.add_argument("--eager-photos", action="store_true",
+                    help="照片分片强制 eager（覆盖 build_meta 的 photo_loading）")
     ap.add_argument("--derive-calib", action="store_true",
                     help="用服务端落位算法预生成 CALIB（缺省留空，"
                          "浏览器 basePos 兜底）")
@@ -568,6 +577,16 @@ def main() -> int:
         validate_cats_unique(cats, "名册 ")
     photo_sum = sum(int(c["photoCount"]) for c in cats)
     p_total = opt(args.photo_count, "survey_photo_total", photo_sum)
+
+    # 照片分片加载策略：CLI --photo-loading / --eager-photos 压过 build_meta；
+    # T1 阶段缺省 eager（与 v2.7 历史产物字节一致），模板 v28 起翻为 lazy。
+    photo_loading = args.photo_loading or meta.get("photo_loading")
+    if args.eager_photos:
+        photo_loading = "eager"
+    photo_loading = photo_loading or "eager"
+    if photo_loading not in ("eager", "lazy"):
+        raise SystemExit(
+            f"photo_loading 非法：{photo_loading!r}（仅支持 eager/lazy）")
 
     # --- 照片：缺失严格报错；共用照只存一份 ---
     if not photos_dir.is_dir():
@@ -716,11 +735,21 @@ def main() -> int:
     }
 
     # --- 分片（先算片数，才能渲染 script 标签） ---
-    sizes = [(name, len(blob)) for name, blob in blobs.items()]
-    groups = chunk_plan(sizes)
-    tags = "".join(
-        f'<script src="assets/photo-data-{i:02d}.js"></script>'
-        for i in range(1, len(groups) + 1))
+    if photo_loading == "lazy":
+        # 00 关键片=底图（星图画布启动即 PH(MAP_SRC)，必须 eager）；
+        # 猫照片按 ≤1.5MB 分 01..N 懒片，HTML 不引用，由运行时加载器按清单取。
+        groups = [[map_file]] + chunk_plan(
+            [(k, len(v)) for k, v in blobs.items() if k != map_file])
+        key_chunk = {k: i for i, g in enumerate(groups) for k in g}
+        tags = ('<script src="assets/photo-data-00.js"></script>'
+                '<script>const __PM='
+                + js({"n": len(groups), "m": key_chunk}) + ";</script>")
+    else:
+        # eager：v2.7 旧整包布局，全部片立即加载（编号 01 起，历史产物字节一致）
+        groups = chunk_plan([(name, len(blob)) for name, blob in blobs.items()])
+        tags = "".join(
+            f'<script src="assets/photo-data-{i:02d}.js"></script>'
+            for i in range(1, len(groups) + 1))
 
     # --- 按 fixtures 规则顺序替换 ---
     fx_path = REPO_ROOT / "tests" / "fixtures" / "nuc_literals.json"
@@ -766,7 +795,8 @@ def main() -> int:
     if assets.exists():
         shutil.rmtree(assets)
     assets.mkdir(parents=True, exist_ok=True)
-    for i, group in enumerate(groups, start=1):
+    first_idx = 0 if photo_loading == "lazy" else 1
+    for i, group in enumerate(groups, start=first_idx):
         lines = [photo_line(k, blobs[k]) for k in group]
         (assets / f"photo-data-{i:02d}.js").write_text(
             chunk_text(lines), "utf-8")
