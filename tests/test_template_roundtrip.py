@@ -143,8 +143,8 @@ class V28RoundtripTest(_RoundtripBase, unittest.TestCase):
 
 
 class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
-    """现役模板：v28-lazy + F11 主题/校徽三 token，golden 由 make_v29 生成。"""
-    template_path = REPO_ROOT / "template" / "starmap.html"
+    """v29 历史快照回归（F11 三 token 齐备、排版精修前的最后一版）。"""
+    template_path = FIX / "v29_template.html"
     rules_path = FIX / "nuc_literals.json"
     baseline_path = FIX / "v29_baseline.html"
     photo_script_count = 2
@@ -166,7 +166,7 @@ class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
                 self.assertEqual(self.template.count(token), 1)
 
     def test_f11_empty_renders_byte_equal_v28(self) -> None:
-        """F11 红线：三个 token 注入空串后，现役模板必须 == v28 模板。"""
+        """F11 红线（v29 形态）：三个 token 注入空串后 == v28 模板。"""
         empty = self.template
         for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
             empty = empty.replace(token, "")
@@ -178,6 +178,54 @@ class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
         """中北基线 F11 全空，不得含任何 F11 token（空值真相）。"""
         for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
             self.assertNotIn(token, self.source)
+
+
+class V30RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v29 + 排版精修（TYPO 补丁），golden 由 make_v30 生成。"""
+    template_path = REPO_ROOT / "template" / "starmap.html"
+    rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v30_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_equal_v29_plus_typo(self) -> None:
+        """F11 红线（v30 形态）：空 token 渲染 == 冻结 v29 模板 + TYPO。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v30_baseline import TYPO_PATCHES, _apply
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        ref = _apply(
+            (FIX / "v29_template.html").read_text("utf-8"), TYPO_PATCHES, "v29")
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            ref = ref.replace(token, "")
+        self.assertEqual(empty, ref,
+                         "F11 空值路径不再等于「v29 模板 + TYPO」")
+
+    def test_typography_patches_landed(self) -> None:
+        """迭代 1 的排版补丁确实在现役模板里。"""
+        self.assertIn('"HarmonyOS Sans SC","MiSans"', self.template)
+        self.assertIn("Noto Sans CJK SC,sans-serif", self.template)
+        self.assertGreaterEqual(
+            self.template.count("font-variant-numeric:tabular-nums"), 3)
 
 
 if __name__ == "__main__":
