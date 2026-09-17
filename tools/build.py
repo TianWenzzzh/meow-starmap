@@ -654,12 +654,32 @@ def main() -> int:
                       "可在页面上手拖校准后导出坐标")
 
     # ---------- 52 条规则的最终值（顺序同提取器） ----------
+    # F11 主题/校徽（v29）：开放仓库是本地构建、build_meta 由普查团队自写，
+    # 这里透传字符串；工厂在线侧（T6 F2）会在适配层做 Theme 规范化与
+    # logo src 白名单，不吃任意用户输入。默认全空 → 产物与 v28 字节一致。
+    f11_theme_css = str(meta.get("theme_css", "") or "")
+    f11_logo_intro = str(meta.get("logo_intro", "") or "")
+    f11_logo_topbar = str(meta.get("logo_topbar", "") or "")
+    if "</script" in f11_theme_css.lower():
+        raise SystemExit("theme_css 不允许含 </script>（主题只接受纯 CSS）")
+    for _label, _tag in (("logo_intro", f11_logo_intro),
+                         ("logo_topbar", f11_logo_topbar)):
+        if _tag and not (
+                _tag.lstrip().startswith("<img")
+                and "</script" not in _tag.lower()):
+            raise SystemExit(f"{_label} 只允许单个 <img> 标签")
+
     js_ms = "[" + ",".join(str(int(x)) for x in ms) + "]"
     js_titles = "[" + ",".join(
         f'[{int(t)},"{js_str(t_name)}"]' for t, t_name in pass_titles) + "]"
 
     # 复合 rule 的 new → 最终值（与 fixtures rules 顺序一一对应）
+    # F11 的规则 new 是「锚点+token」（如 </style>__THEME_CSS__），故渲染值
+    # 必须带回锚点原文；默认空内容时整段还原为 v28 锚点，字节零差异。
     rule_values = {
+        "theme_css": "</style>" + f11_theme_css,
+        "logo_intro": '<div id="intro">' + f11_logo_intro,
+        "logo_topbar": '<div class="brand">' + f11_logo_topbar,
         "copy_line": f"  原创作品 © 2026 TianWenzzzh ｜ {n} 只猫的普查数据与 "
                      f"{p_total} 张照片均为实地采集",
         "meta_desc": f'<meta name="description" content="{product}：{n} 只'

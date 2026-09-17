@@ -123,24 +123,61 @@ class V27RoundtripTest(_RoundtripBase, unittest.TestCase):
 
 
 class V28RoundtripTest(_RoundtripBase, unittest.TestCase):
-    template_path = REPO_ROOT / "template" / "starmap.html"
-    rules_path = FIX / "nuc_literals.json"
+    """v28 历史快照回归（懒加载基线，F11 token 出现前的最后一版）。"""
+    template_path = FIX / "v28_template_lazy.html"
+    rules_path = FIX / "nuc_literals.v28.json"
     baseline_path = FIX / "v28_baseline_lazy.html"
     photo_script_count = 2           # 00 关键片标签 + __PM 清单脚本
     expect_source_sha = False
 
     def test_lazy_loader_runtime_present(self) -> None:
-        """v2.8 加载器永久代码必须在模板内（eager 产物靠 typeof 守卫 no-op）。"""
         for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
                        "function __ensurePhoto(", "function __whenPhoto("):
             with self.subTest(needle=needle):
                 self.assertIn(needle, self.template)
 
     def test_eager_bootstrap_absent_from_template(self) -> None:
-        """模板不得内联具体分片 <script src> 标签或 __PM 数据（只能经 build 注入）。
-        加载器运行时用字符串拼接动态生成 src（s.src="assets/..."+i），不在此列。"""
+        """历史 v28 模板同样不得内联具体分片标签。"""
         self.assertNotIn('<script src="assets/photo-data-', self.template)
         self.assertNotIn("const __PM=", self.template)
+
+
+class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v28-lazy + F11 主题/校徽三 token，golden 由 make_v29 生成。"""
+    template_path = REPO_ROOT / "template" / "starmap.html"
+    rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v29_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_byte_equal_v28(self) -> None:
+        """F11 红线：三个 token 注入空串后，现役模板必须 == v28 模板。"""
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        self.assertEqual(
+            empty, (FIX / "v28_template_lazy.html").read_text("utf-8"),
+            "F11 锚点引入了额外字符：空值路径不再字节等于 v28")
+
+    def test_f11_absent_from_baseline(self) -> None:
+        """中北基线 F11 全空，不得含任何 F11 token（空值真相）。"""
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            self.assertNotIn(token, self.source)
 
 
 if __name__ == "__main__":

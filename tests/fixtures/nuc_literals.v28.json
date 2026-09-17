@@ -311,24 +311,6 @@
       "old": "v2.7",
       "new": "__VERSION__",
       "count": 1
-    },
-    {
-      "name": "theme_css",
-      "old": "</style>",
-      "new": "</style>__THEME_CSS__",
-      "count": 1
-    },
-    {
-      "name": "logo_intro",
-      "old": "<div id=\"intro\">",
-      "new": "<div id=\"intro\">__LOGO_INTRO__",
-      "count": 1
-    },
-    {
-      "name": "logo_topbar",
-      "old": "<div class=\"brand\">",
-      "new": "<div class=\"brand\">__LOGO_TOPBAR__",
-      "count": 1
     }
   ]
 }
