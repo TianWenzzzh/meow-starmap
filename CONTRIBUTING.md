@@ -22,12 +22,13 @@
 - 本地门禁（与 CI 一致）：
 
   ```bash
-  uv run --python 3.12 --with pillow python -m unittest discover -s tests -v   # 32 项
+  uv run --python 3.12 --with pillow python -m unittest discover -s tests -v   # 52 项（skip 1）
   node tools/check_html_scripts.mjs .                                          # 全仓 HTML/分片语法
-  uv run --python 3.12 --with playwright python tools/ci_browser_smoke.py       # 可选：浏览器冒烟
+  uv run --python 3.12 --with playwright python tools/ci_browser_smoke.py        # http 懒加载冒烟
+  uv run --python 3.12 --with playwright python tools/ci_browser_smoke.py --file # file:// 离线冒烟
   ```
-  新增托管学校时，记得在 `tools/ci_browser_smoke.py` 里加该校的
-  路径/只数/分片期望，并在 `tests/test_hosted_artifacts.py` 的 `HOSTED` 里登记。
+  新增托管学校时，记得在 `tests/test_hosted_artifacts.py` 的 `HOSTED` 里登记，
+  并在 `tools/ci_browser_smoke.py` 的 `check_starmap` 里加只数期望（默认 lazy）。
 
 ## 数据与许可红线
 

@@ -89,21 +89,26 @@
 模板或数据包更新后，用同一条构建命令重建并覆盖（产物名统一改为 `index.html`）：
 
 ```bash
-# 示例校（约 0.4 MB）
+# 示例校（懒加载：首屏约 90KB，2 个分片：00 底图 + 01 猫照）
 uv run --with pillow tools/build.py --pkg schools/示例校 --out /tmp/demo
 cp /tmp/demo/示例校喵星图.html demo/index.html
-cp /tmp/demo/assets/photo-data-*.js demo/assets/
+rm -f demo/assets/photo-data-*.js && cp /tmp/demo/assets/photo-data-*.js demo/assets/
 
-# 中北（约 11 MB，9 个照片分片）
+# 中北（懒加载：首屏照片 216KB，9 个分片：00 底图 + 01-08 猫照）
 uv run --with pillow tools/build.py --pkg schools/nuc --out /tmp/nuc
 cp /tmp/nuc/中北喵星图.html nuc/index.html
-cp /tmp/nuc/assets/photo-data-*.js nuc/assets/
+rm -f nuc/assets/photo-data-*.js && cp /tmp/nuc/assets/photo-data-*.js nuc/assets/
 ```
 
-重建后必做：`node tools/check_html_scripts.mjs .`（全仓 HTML 与照片分片语法）
-+ 浏览器打开 `/nuc/`、`/demo/` 点一次「影廊」确认照片能解码（见 `docs/screenshots/13、14`）。
+托管产物统一用**默认 lazy 模式**（在线首屏小）；只有明确要发 U 盘整包时才给
+`--eager-photos`，且不要用整包覆盖 Pages 托管目录。重建后旧分片必须先 `rm`
+（懒/切模式时分片数会变，漏删会导致漂移测试红）。
+
+重建后必做：`python -m unittest tests.test_hosted_artifacts`（逐字节漂移门禁）
++ `node tools/check_html_scripts.mjs .`（全仓 HTML 与照片分片语法）
++ `python tools/ci_browser_smoke.py`（http 懒加载网络断言）。
 新学校 PR 还需要两处登记：
-`tests/test_hosted_artifacts.py` 的 `HOSTED` 元组（漂移门禁）
-与 `tools/ci_browser_smoke.py` 的期望列表（只数/分片数/按钮 href），
-CI 会自动对新托管页跑 headless 冒烟。
+`tests/test_hosted_artifacts.py` 的 `HOSTED` 元组（漂移门禁，含 lazy/eager 模式）
+与 `tools/ci_browser_smoke.py` 的 `check_starmap` 期望（只数），
+CI 会自动对新托管页跑 http + file:// 双冒烟。
 新学校 PR 合入后，由维护者按同样方式把产物放到 `<短名>/` 并连通展示墙卡片。
