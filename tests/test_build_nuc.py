@@ -185,14 +185,13 @@ class NucBuildTests(unittest.TestCase):
                 "poster_stars", "photo_scripts", "cats_lead_comment",
                 # 深扫 E-02（2026-09-19）：页脚追加双许可行属设计内差异，
                 # v2.7 原文完整保留在 tests/fixtures/v32_baseline.html
-                "stats_foot"}
-        import sys
+                "stats_foot",
+                # P0 版本串注入（2026-09-18）：版本号改为 build_meta 驱动
+                # （v2.7 → v2.8.4），两条旧字面量随产物版本演进属设计内差异
+                "console_line1", "version"}
         for r in self.fx["rules"]:
             if r["name"] in skip:
                 continue
-            if r["old"] not in self.html:
-                print(f"LIT_FAIL_RULE={r['name']} old_head={r['old'][:48]!r}",
-                      file=sys.stderr)
             self.assertIn(r["old"], self.html,
                           f'v2.7 原文丢失（{r["name"]}）：{r["old"][:60]}')
 
