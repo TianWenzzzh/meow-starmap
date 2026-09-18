@@ -182,7 +182,10 @@ class NucBuildTests(unittest.TestCase):
         """52 条规则 old 原文（整块与已知差异项除外）必须逐字保留。"""
         skip = {"cats_block", "calib_block", "areas_block",
                 "area_keys_block", "rel_block", "const_block",
-                "poster_stars", "photo_scripts", "cats_lead_comment"}
+                "poster_stars", "photo_scripts", "cats_lead_comment",
+                # 深扫 E-02（2026-09-19）：页脚追加双许可行属设计内差异，
+                # v2.7 原文完整保留在 tests/fixtures/v32_baseline.html
+                "stats_foot"}
         for r in self.fx["rules"]:
             if r["name"] in skip:
                 continue
