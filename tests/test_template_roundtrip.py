@@ -229,8 +229,8 @@ class V30RoundtripTest(_RoundtripBase, unittest.TestCase):
 
 
 class V31RoundtripTest(_RoundtripBase, unittest.TestCase):
-    """现役模板：v30 + 字栈顺序修正（U 补丁），golden 由 make_v31 生成。"""
-    template_path = REPO_ROOT / "template" / "starmap.html"
+    """v31 历史快照回归（canvas 字体栈补全前的最后一版，golden 已冻结）。"""
+    template_path = FIX / "v31_template.html"
     rules_path = FIX / "nuc_literals.json"
     baseline_path = FIX / "v31_baseline.html"
     photo_script_count = 2
@@ -277,6 +277,63 @@ class V31RoundtripTest(_RoundtripBase, unittest.TestCase):
             '"HarmonyOS Sans SC","MiSans","Microsoft YaHei"', self.template)
         self.assertGreaterEqual(
             self.template.count("font-variant-numeric:tabular-nums"), 3)
+
+
+class V32RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v31 + canvas 导出字体栈补全（U2 补丁），golden 由 make_v32 生成。"""
+    template_path = REPO_ROOT / "template" / "starmap.html"
+    rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v32_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_equal_v31_plus_u2(self) -> None:
+        """F11 红线（v32 形态）：空 token 渲染 == 冻结 v31 模板 + U2。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v32_baseline import U2_PATCHES, _apply
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        ref = _apply(
+            (FIX / "v31_template.html").read_text("utf-8"), U2_PATCHES, "v31")
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            ref = ref.replace(token, "")
+        self.assertEqual(empty, ref,
+                         "F11 空值路径不再等于「v31 模板 + U2」")
+
+    def test_canvas_export_font_stacks_upgraded(self) -> None:
+        """迭代 v32：护照/分享卡导出字体栈常量已带系统兜底（CSS 与导出图一致）。"""
+        expected = ('"PingFang SC","Microsoft YaHei",'
+                    '"HarmonyOS Sans SC","MiSans","Source Han Sans SC",'
+                    '"Noto Sans CJK SC",sans-serif')
+        for const in ("FT=", "_FT="):
+            with self.subTest(const=const):
+                # FT / _FT 的值是单引号 JS 串，常量名后紧跟起始定界符
+                self.assertIn(f"{const}'{expected}'", self.template)
+        # 裸栈形态不得再现（YaHei 后直接闭合或直接接 sans-serif）
+        self.assertNotIn('px "PingFang SC","Microsoft YaHei"\'', self.template)
+        self.assertNotIn('px "PingFang SC","Microsoft YaHei",sans-serif\'',
+                         self.template)
+        self.assertNotIn("\"12px 'PingFang SC','Microsoft YaHei'\"",
+                         self.template)
 
 
 if __name__ == "__main__":

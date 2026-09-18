@@ -48,5 +48,16 @@ class V31GoldenFreshnessTests(unittest.TestCase):
             "v31 golden 漂移：\n" + r.stdout + r.stderr)
 
 
+class V32GoldenFreshnessTests(unittest.TestCase):
+    def test_make_v32_baseline_check_clean(self) -> None:
+        r = subprocess.run(
+            [sys.executable, str(REPO / "tools" / "make_v32_baseline.py"),
+             "--check"],
+            capture_output=True, text=True, cwd=str(REPO))
+        self.assertEqual(
+            r.returncode, 0,
+            "v32 golden 漂移：\n" + r.stdout + r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
