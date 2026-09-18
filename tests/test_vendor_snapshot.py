@@ -2,7 +2,7 @@
 """T6 F7 · vendor 快照锁定门禁。
 
 tools/starmap_render.py 是从喵星图工厂 catgalaxy-factory 反向 vendor 的
-**唯一渲染真相**（基线：feat/v29-template `8284332`，v1.1.0）。本测试锁定
+**唯一渲染真相**（基线：feat/v29-template `e13dbb4`，页脚双许可版）。本测试锁定
 快照内容：要升级渲染层，就走「改工厂 → 更新快照 → 改这里的钉定哈希与基线
 标注」的显式流程，不许在快照文件里悄悄改字节——那会让三仓渲染真相重新分叉。
 
@@ -16,8 +16,8 @@ REPO = Path(__file__).resolve().parents[1]
 VENDOR = REPO / "tools" / "starmap_render.py"
 
 # 与文件头「vendor 基线」标注绑定；升基线时两处一起改
-PINNED_SHA256 = "a52ef84290d0f6b2ec96e6f1911d668e5ed9daa1a3349921ab4ce1fd2d79d212"
-FACTORY_REF = "feat/v29-template 8284332 (v1.1.0)"
+PINNED_SHA256 = "055b7a7f2b5e56c6ec7a369344d8e0975594ca73d4b71bc6a4b67a62b7436546"
+FACTORY_REF = "feat/v29-template e13dbb4 (v1.3.1 待发版；本代仅同步页脚双许可行)"
 
 
 class VendorSnapshotLockTests(unittest.TestCase):

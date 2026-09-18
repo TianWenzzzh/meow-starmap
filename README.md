@@ -28,7 +28,7 @@ meow-starmap/
 ├─ schools/                # 数据层（CC BY-NC-SA 4.0，各校自有）
 │  ├─ nuc/                 #   中北大学：76 只名册 + 75 代表照 + 夜空底图 + 归并摘要
 │  └─ 示例校/               #   2 只虚构样本 + 占位图，用来跑通流水线
-├─ tests/                  # v27/v28 字节往返 + 构建等价 + 注入安全 + 产物漂移 + 名册校验（52 项，CI 零跳过）
+├─ tests/                  # v27…v32 六代字节往返 + 构建等价 + 注入安全 + 产物漂移 + 名册校验（131 项；5 个 golden 自证 skip 属设计内）
 ├─ gallery/                # 多校展示墙（纯静态，GitHub Pages）
 ├─ nuc/ · demo/            # Pages 托管的在线体验产物（build.py 生成，勿手改；重建见 docs/PR指南.md §7）
 └─ docs/                   # 快速上手 / 普查拍摄规范 / PR 指南 / 自检清单 / 验收证据
@@ -65,7 +65,7 @@ uv run --with pillow tools/build.py --pkg schools/示例校 --out dist/示例校
 ## 质量门禁（本仓库如何保证不翻车）
 
 GitHub Actions（[CI 状态](https://github.com/TianWenzzzh/meow-starmap/actions)）
-在每次 push/PR 跑两条线：**52 项 Python 测试零跳过** + **全仓 HTML/分片语法门禁**，
+在每次 push/PR 跑两条线：**131 项 Python 测试**（5 个 golden 自证 skip 属设计内）+ **全仓 HTML/分片语法门禁**，
 以及 headless Chromium 对 `/gallery/ /nuc/ /demo/` 的 **http + file:// 双冒烟**
 （懒加载网络断言：初始仅底图关键片、灯箱/档案卡按需取片解码、0 pageerror）。
 照片默认**分片懒加载**：中北版首屏照片仅 216KB（约为原 11MB eager 全量的 2%），

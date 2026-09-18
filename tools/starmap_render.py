@@ -1,16 +1,17 @@
 """v29 星图纯渲染层（T6 F7 反向 vendor：**上游真相 = 喵星图工厂**）。
 
 vendor 自 catgalaxy-factory `app/starmap_render.py`（MIT，© TianWenzzzh），
-vendor 基线：工厂仓 feat/v29-template 提交 `8284332`（v1.1.0）。
-本仓库 build.py 不再自持渲染实现，只做数据装配后调这里；漂移门禁
+vendor 基线：工厂仓 feat/v29-template 提交 `e13dbb4`（v1.3.1，页脚双许可版）；
+相对上一基线 8284332 的差异仅一处：stats_foot 追加双许可行（深扫 E-02）。
+本仓库 build.py 不再自持渲染实现，只做数据装配后调这里；
 tests/test_vendor_snapshot.py 锁定本文件与基线 sha256 一致。
 
 上游为在线服务（输入不可信任），自由文本按落地上下文转义（html_esc /
-js_str）；转义对白名单内合法取值是恒等变换——对同一数据包，本文件与
+js_str）；转义对白名单内合法取值都是恒等变换——对同一数据包，本文件与
 16 仓既有产线输出逐字节一致（tests/test_build_nuc / 漂移门禁背书）。
 
-模板 template/starmap_v29.html 由 make_v29_baseline.py 生成（F1），
-规则随 tests/fixtures/nuc_literals.json 的提取器凭据走。
+模板 template/starmap.html（v32 代）与规则随 tests/fixtures/nuc_literals.json
+的提取器凭据走。
 """
 from __future__ import annotations
 
@@ -402,7 +403,8 @@ def render(inp: V29RenderInput) -> V29Bundle:
                           f"《归并决策摘要.md》，欢迎抽查。",
         "stats_foot": f"数据源：猫咪名册.csv · {html_esc(survey_date)} 实地普查 · "
                       f"仅{html_esc(short)}校园<br>"
-                      f"星色 = 毛色 ｜ 环绕光点 = 收录照片数"
+                      f"星色 = 毛色 ｜ 环绕光点 = 收录照片数<br>"
+                      f"代码 MIT · 数据与照片 CC BY-NC-SA 4.0 · 转载请署名并附仓库链接"
                       + (f"<br>✍ {html_esc(inp.footer_signature)}"
                          if inp.footer_signature else ""),
         "banner_sub": f" * 底图: {map_ref} | 数据: CATS（{n}只真猫名册 · "
