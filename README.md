@@ -65,6 +65,8 @@ uv run --with pillow tools/build.py --pkg schools/示例校 --out dist/示例校
 ## 质量门禁（本仓库如何保证不翻车）
 
 GitHub Actions（[CI 状态](https://github.com/TianWenzzzh/meow-starmap/actions)）
+> 浏览器基线：Chrome/Edge 80+、Safari 13.1+（2020 年起；模板 JS 使用可选链）。更老浏览器不保证渲染。
+
 在每次 push/PR 跑两条线：**131 项 Python 测试**（5 个 golden 自证 skip 属设计内）+ **全仓 HTML/分片语法门禁**，
 以及 headless Chromium 对 `/gallery/ /nuc/ /demo/` 的 **http + file:// 双冒烟**
 （懒加载网络断言：初始仅底图关键片、灯箱/档案卡按需取片解码、0 pageerror）。

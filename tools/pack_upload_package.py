@@ -115,12 +115,21 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="打包上传用物料（04 文本包 / 02 参赛 zip）")
     ap.add_argument("--product-repo", required=True,
                     help="05 仓路径（含 中北喵星图.html 与 assets/）")
-    ap.add_argument("--pkg-dir", required=True, help="04 号包目录")
+    ap.add_argument("--pkg-dir", required=True,
+                    help="【目标】04 号包目录（将被写入/刷新），如 04_文本包_上传用_纯文本版；"
+                         "源数据包 schools/nuc 为硬编码，勿传")
     ap.add_argument("--zip-out", default=None, help="可选：额外产出 zip 的路径")
     args = ap.parse_args(argv)
 
     product = Path(args.product_repo).resolve()
     dest = Path(args.pkg_dir).resolve()
+    # 深扫会话防呆（2026-09-19）：pkg-dir 是【目标 04 包目录】，源数据包
+    # schools/nuc 是硬编码常量——把源当目标传入会自拷报 WinError 32，
+    # 并把产物污染进数据包（实测踩过）。就地拒绝。
+    if dest == PKG.resolve() or (dest / "data" / "归并决策摘要.md").exists() is False and dest.name == "nuc":
+        raise SystemExit(
+            "--pkg-dir 是【目标 04 包目录】（如 04_文本包_上传用_纯文本版），"
+            "不是源数据包 schools/nuc——源已硬编码，勿传。", )
     dest.mkdir(parents=True, exist_ok=True)
 
     html_sha, shards = copy_product(product, dest)
