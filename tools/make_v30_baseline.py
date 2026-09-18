@@ -30,7 +30,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 FIX = REPO / "tests" / "fixtures"
-TEMPLATE_PATH = REPO / "template" / "starmap.html"
+# 排版迭代 v31 起，现役模板 template/starmap.html 归 make_v31 所有；
+# 本脚本的模板产物改为落冻结快照，供 V30RoundtripTest 历史回归。
+TEMPLATE_PATH = FIX / "v30_template.html"
 
 V29_TEMPLATE = FIX / "v29_template.html"        # 冻结输出（历史回归）
 V29_BASELINE = FIX / "v29_baseline.html"        # 上一代输入（勿改）

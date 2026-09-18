@@ -181,8 +181,8 @@ class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
 
 
 class V30RoundtripTest(_RoundtripBase, unittest.TestCase):
-    """现役模板：v29 + 排版精修（TYPO 补丁），golden 由 make_v30 生成。"""
-    template_path = REPO_ROOT / "template" / "starmap.html"
+    """v30 历史快照回归（字栈顺序修正前的最后一版，golden 已冻结）。"""
+    template_path = FIX / "v30_template.html"
     rules_path = FIX / "nuc_literals.json"
     baseline_path = FIX / "v30_baseline.html"
     photo_script_count = 2
@@ -221,9 +221,60 @@ class V30RoundtripTest(_RoundtripBase, unittest.TestCase):
                          "F11 空值路径不再等于「v29 模板 + TYPO」")
 
     def test_typography_patches_landed(self) -> None:
-        """迭代 1 的排版补丁确实在现役模板里。"""
+        """迭代 1 的排版补丁确实在 v30 冻结快照里。"""
         self.assertIn('"HarmonyOS Sans SC","MiSans"', self.template)
         self.assertIn("Noto Sans CJK SC,sans-serif", self.template)
+        self.assertGreaterEqual(
+            self.template.count("font-variant-numeric:tabular-nums"), 3)
+
+
+class V31RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v30 + 字栈顺序修正（U 补丁），golden 由 make_v31 生成。"""
+    template_path = REPO_ROOT / "template" / "starmap.html"
+    rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v31_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_equal_v30_plus_u(self) -> None:
+        """F11 红线（v31 形态）：空 token 渲染 == 冻结 v30 模板 + U。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v31_baseline import U_PATCHES, _apply
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        ref = _apply(
+            (FIX / "v30_template.html").read_text("utf-8"), U_PATCHES, "v30")
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            ref = ref.replace(token, "")
+        self.assertEqual(empty, ref,
+                         "F11 空值路径不再等于「v30 模板 + U」")
+
+    def test_font_stack_order_fixed(self) -> None:
+        """迭代 v31：兜底字体已移到微软雅黑之后（Windows 观感零漂移）。"""
+        self.assertIn(
+            '"PingFang SC","Microsoft YaHei","HarmonyOS Sans SC","MiSans"',
+            self.template)
+        self.assertNotIn(
+            '"HarmonyOS Sans SC","MiSans","Microsoft YaHei"', self.template)
         self.assertGreaterEqual(
             self.template.count("font-variant-numeric:tabular-nums"), 3)
 
