@@ -186,9 +186,13 @@ class NucBuildTests(unittest.TestCase):
                 # 深扫 E-02（2026-09-19）：页脚追加双许可行属设计内差异，
                 # v2.7 原文完整保留在 tests/fixtures/v32_baseline.html
                 "stats_foot"}
+        import sys
         for r in self.fx["rules"]:
             if r["name"] in skip:
                 continue
+            if r["old"] not in self.html:
+                print(f"LIT_FAIL_RULE={r['name']} old_head={r['old'][:48]!r}",
+                      file=sys.stderr)
             self.assertIn(r["old"], self.html,
                           f'v2.7 原文丢失（{r["name"]}）：{r["old"][:60]}')
 
