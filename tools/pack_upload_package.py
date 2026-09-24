@@ -8,25 +8,31 @@
 数据来源（单一真相）：
   产品层  05 仓 `中北喵星图.html` + `assets/photo-data-*.js`（9 分片）
   数据层  16 仓 `schools/nuc/data/猫咪名册.csv`、`归并决策摘要.md`
-  文档层  目标目录内既有的 README.md / SKILL.md（保持人工维护，不改）
+  文档层  05 仓 `README.md` / `SKILL.md`（与产物同仓，随发版一起更新）
 
 不变式（脚本内断言，失败即非零退出）：
   1. 打包后 HTML 的 sha256 == 05 仓产物 == 16 托管 nuc/index.html
   2. 分片数量与 05 仓一致，且逐片 sha256 相同
   3. 文件清单恰好等于预期集合（不多不少）
+  4. 文档逐份 sha256 == 05 仓同名文件
+
+第 4 条是 2026-09-23 补的。此前文档层写的是「目标目录内既有文件，人工维护不改」，
+实测后果：04 目录的 README 停在 9-03，缺了 05 仓 30a6d6b 加的「作者与版权」整节，
+而每次发版都在照抄它——连最新 v2.8.7 的对外 zip 里那份 README 都是旧的，
+双许可声明（数据/照片 CC BY-NC-SA、"侵权删"不免责）压根没随包发出去。
+文档只 print 一行提示不比 sha，所以这件事不会让任何一道闸门变红。
 
 用法：
   python3 tools/pack_upload_package.py \
       --product-repo ../05_git仓库_最新v2.6 \
       --pkg-dir 04_文本包_上传用_纯文本版 \
-      [--zip-out 02_参赛作品_zip/最新版/中北大学—校园猫咪档案Skill-纯文本版-v2.8.4.zip]
+      [--zip-out 02_参赛作品_zip/最新版/中北大学—校园猫咪档案Skill-纯文本版-v<当前tag>.zip]
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import shutil
-import sys
 import zipfile
 from pathlib import Path
 
@@ -74,8 +80,17 @@ def copy_data(dest: Path) -> list[str]:
     return out
 
 
+def copy_docs(product: Path, dest: Path) -> None:
+    """文档层以 05 仓为准：README 里的作者/双许可声明随发版更新，不能靠人记着同步。"""
+    for doc in EXPECTED_DOCS:
+        src = product / doc
+        if not src.exists():
+            raise SystemExit(f"05 仓缺文档，无法打包：{src}")
+        shutil.copy2(src, dest / doc)
+
+
 def verify(dest: Path, product: Path, html_sha: str, shards: list[str]) -> None:
-    """三重自证：HTML 与产物/托管三方一致；分片逐片一致；清单不多不少。"""
+    """四重自证：HTML 与产物/托管三方一致；分片逐片一致；文档逐份一致；清单不多不少。"""
     if sha256(dest / PRODUCT_HTML) != html_sha:
         raise SystemExit("自证失败：打包后 HTML 与 05 产物 sha256 不一致")
     if HOSTED.exists() and sha256(HOSTED) != html_sha:
@@ -92,8 +107,8 @@ def verify(dest: Path, product: Path, html_sha: str, shards: list[str]) -> None:
         missing = set(shards) - actual
         raise SystemExit(f"自证失败：分片清单不符（多 {extra} / 少 {missing}）")
     for doc in EXPECTED_DOCS:
-        if not (dest / doc).exists():
-            print(f"  [提示] 缺文档 {doc}（本脚本不生成，请人工补齐）", file=sys.stderr)
+        if sha256(dest / doc) != sha256(product / doc):
+            raise SystemExit(f"自证失败：{doc} 与 05 仓同名文件字节不一致（文档落后一版没人发现过）")
 
 
 def build_zip(dest: Path, zip_out: Path, shards: list[str],
@@ -107,8 +122,7 @@ def build_zip(dest: Path, zip_out: Path, shards: list[str],
         for rel in data_rels:
             zf.write(dest / rel, f"{root}/{rel}")
         for doc in EXPECTED_DOCS:
-            if (dest / doc).exists():
-                zf.write(dest / doc, f"{root}/{doc}")
+            zf.write(dest / doc, f"{root}/{doc}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -134,15 +148,16 @@ def main(argv: list[str] | None = None) -> int:
 
     html_sha, shards = copy_product(product, dest)
     data_files = copy_data(dest)
+    copy_docs(product, dest)
     verify(dest, product, html_sha, shards)
 
-    total = 1 + len(shards) + len(data_files) + len(
-        [d for d in EXPECTED_DOCS if (dest / d).exists()])
+    total = 1 + len(shards) + len(data_files) + len(EXPECTED_DOCS)
     print(f"物料已同步 → {dest}")
     print(f"  产品：{PRODUCT_HTML}（sha256 {html_sha[:12]}…）+ {len(shards)} 个分片")
     print(f"  数据：{'、'.join(data_files)}")
-    print(f"  文档：{'、'.join(EXPECTED_DOCS)}（人工维护，未改动）")
-    print(f"  合计 {total} 个文件；自证：HTML 三方一致 + 分片逐片一致 ✓")
+    print(f"  文档：{'、'.join(f'{d}（{sha256(product / d)[:12]}…）' for d in EXPECTED_DOCS)}"
+          f" ← 从 05 仓同步")
+    print(f"  合计 {total} 个文件；自证：HTML 三方一致 + 分片逐片一致 + 文档逐份与 05 一致 ✓")
 
     if args.zip_out:
         zip_out = Path(args.zip_out).resolve()

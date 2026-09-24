@@ -23,7 +23,8 @@ tests/fixtures/v31_template.html（V31RoundtripTest 随之转为历史回归）�
 产出（--check 只比对不落盘）：
   tests/fixtures/v31_template.html  v31 模板冻结快照（历史回归用）
   tests/fixtures/v32_baseline.html  v32 基线（= v31 基线 + U2）
-  template/starmap.html             v32 token 模板（= v31 模板 + U2）
+  tests/fixtures/v32_template.html  v32 token 模板（= v31 模板 + U2；
+                                    v33 起本代冻结，不再写现役 template/）
 
 用法：
   python3 tools/make_v32_baseline.py          # 生成
@@ -43,6 +44,10 @@ V31_TEMPLATE = FIX / "v31_template.html"        # 冻结输出（历史回归）
 V31_BASELINE = FIX / "v31_baseline.html"        # 上一代输入（勿改）
 V31_RULES = FIX / "nuc_literals.json"           # 上一代规则（勿改，本代不变）
 V32_BASELINE = FIX / "v32_baseline.html"
+# 🔴 v33 起本代已冻结：输出改指自家冻结件，不再写 template/starmap.html。
+# 现役模板归 make_v33_baseline.py 独占——旧代脚本若继续写它，一跑就把线上
+# 模板回退成 v32 内容（且 --check 会永远红，因为线上已是 v33）。
+V32_TEMPLATE = FIX / "v32_template.html"
 
 # v31 CSS 栈已定的兜底序列（与 make_v31_baseline._FALLBACK 保持一致）
 _FALLBACK = ('"HarmonyOS Sans SC","MiSans","Source Han Sans SC",'
@@ -149,7 +154,7 @@ def main() -> int:
 
     outputs = {
         V32_BASELINE: baseline,
-        TEMPLATE_PATH: template,
+        V32_TEMPLATE: template,
     }
     if check:
         drift = []
@@ -167,7 +172,7 @@ def main() -> int:
     for path, content in outputs.items():
         path.write_text(content, "utf-8")
     print(f"v32 baseline : {V32_BASELINE}（{baseline.count(chr(10))+1} 行）")
-    print(f"v32 template : {TEMPLATE_PATH}（{template.count(chr(10))+1} 行，"
+    print(f"v32 template : {V32_TEMPLATE}（{template.count(chr(10))+1} 行，"
           f"{len(U2_PATCHES)} 个 canvas 字体栈补丁）")
     print("自验：灌回规则 == 基线；F11 空值渲染 == v31 模板 + U2 ✓")
     return 0

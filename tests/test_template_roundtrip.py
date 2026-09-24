@@ -280,8 +280,8 @@ class V31RoundtripTest(_RoundtripBase, unittest.TestCase):
 
 
 class V32RoundtripTest(_RoundtripBase, unittest.TestCase):
-    """现役模板：v31 + canvas 导出字体栈补全（U2 补丁），golden 由 make_v32 生成。"""
-    template_path = REPO_ROOT / "template" / "starmap.html"
+    """v32 历史快照回归（Safari 前缀补丁前的最后一版，golden 已冻结）。"""
+    template_path = FIX / "v32_template.html"
     rules_path = FIX / "nuc_literals.json"
     baseline_path = FIX / "v32_baseline.html"
     photo_script_count = 2
@@ -334,6 +334,86 @@ class V32RoundtripTest(_RoundtripBase, unittest.TestCase):
                          self.template)
         self.assertNotIn("\"12px 'PingFang SC','Microsoft YaHei'\"",
                          self.template)
+
+
+class V33RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v32 + 毛玻璃 Safari 前缀（U3 补丁），golden 由 make_v33 生成。"""
+    template_path = REPO_ROOT / "template" / "starmap.html"
+    rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v33_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_equal_v32_plus_u3(self) -> None:
+        """F11 红线（v33 形态）：空 token 渲染 == 冻结 v32 模板 + U3。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v33_baseline import apply_u3
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        ref = apply_u3((FIX / "v32_template.html").read_text("utf-8"), "v32")
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            ref = ref.replace(token, "")
+        self.assertEqual(empty, ref,
+                         "F11 空值路径不再等于「v32 模板 + U3」")
+
+    def test_backdrop_filter_fully_prefixed(self) -> None:
+        """迭代 v33：17 处标准毛玻璃声明都有紧跟的同值 -webkit- 兄弟声明。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v33_baseline import STD_TOTAL, _DECL, _UNPAIRED
+        self.assertEqual(len(_DECL.findall(self.template)), STD_TOTAL)
+        self.assertEqual(_UNPAIRED.findall(self.template), [],
+                         "有毛玻璃声明丢了 Safari 前缀")
+        self.assertEqual(
+            self.template.count("-webkit-backdrop-filter:"), STD_TOTAL)
+        # 冻结的上一代确实是「未补齐」状态，否则本代补丁就成了空转
+        v32 = (FIX / "v32_template.html").read_text("utf-8")
+        self.assertEqual(len(_UNPAIRED.findall(v32)), STD_TOTAL - 2)
+
+    def test_u3_touched_nothing_else(self) -> None:
+        """v33 相对 v32 冻结件的差异只有前缀插入（逐行逆变换核对，防夹带）。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v33_baseline import _DECL
+        v32 = (FIX / "v32_template.html").read_text("utf-8").splitlines()
+        v33 = self.template.splitlines()
+        self.assertEqual(len(v32), len(v33), "行数变了——U3 应只在行内插前缀")
+        changed = [(i, a, b) for i, (a, b) in enumerate(zip(v32, v33)) if a != b]
+        self.assertEqual(len(changed), 15,
+                         f"改动行数 {len(changed)} ≠ 15，例：{changed[:3]}")
+        for i, a, b in changed:
+            with self.subTest(line=i + 1):
+                decls = _DECL.findall(a)
+                self.assertEqual(len(decls), 1,
+                                 f"第 {i + 1} 行有 {len(decls)} 处标准声明，"
+                                 "本测试只覆盖每行一处的情况")
+                key = " -webkit-" + decls[0]
+                self.assertEqual(b.count(key), 1, f"第 {i + 1} 行没插入 {key!r}")
+                self.assertEqual(b.replace(key, "", 1), a,
+                                 f"第 {i + 1} 行除前缀外还有别的改动")
 
 
 if __name__ == "__main__":
