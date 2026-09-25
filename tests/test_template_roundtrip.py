@@ -345,9 +345,9 @@ class V32RoundtripTest(_RoundtripBase, unittest.TestCase):
 
 
 class V34RoundtripTest(_RoundtripBase, unittest.TestCase):
-    """现役模板：v33 + STAR_BOX 建成区框（U4 补丁），golden 由 make_v34 生成。"""
-    template_path = REPO_ROOT / "template" / "starmap.html"
-    rules_path = FIX / "nuc_literals.json"
+    """v34 历史快照回归（STAR_ZONE 多边形撒点前的最后一版，golden 已冻结）。"""
+    template_path = FIX / "v34_template.html"
+    rules_path = FIX / "nuc_literals.v34.json"
     baseline_path = FIX / "v34_baseline.html"
     photo_script_count = 2
     expect_source_sha = False
@@ -505,6 +505,91 @@ class V33RoundtripTest(_RoundtripBase, unittest.TestCase):
                 self.assertEqual(b.count(key), 1, f"第 {i + 1} 行没插入 {key!r}")
                 self.assertEqual(b.replace(key, "", 1), a,
                                  f"第 {i + 1} 行除前缀外还有别的改动")
+
+
+class V35RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v34 + STAR_ZONE 多边形撒点（U5 补丁），golden 由 make_v35 生成。"""
+    template_path = REPO_ROOT / "template" / "starmap.html"
+    rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v35_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+    # golden 数据沿用 v2.7 提取期历史快照（同 v34 注）；zone 由 build_meta 注入。
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_equal_v34_plus_u5(self) -> None:
+        """F11 红线（v35 形态）：空 token 渲染 == 冻结 v34 模板 + U5。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v35_baseline import apply_u5
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        ref = apply_u5(
+            (FIX / "v34_template.html").read_text("utf-8"), "v34 冻结件",
+            token_form=True)
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            ref = ref.replace(token, "")
+        self.assertEqual(empty, ref,
+                         "F11 空值路径不再等于「v34 模板 + U5」")
+
+    def test_star_zone_mechanism_live_in_template(self) -> None:
+        """拒绝采样钩子必须在模板里是活代码；golden 侧缺省是 null 字面量。"""
+        self.assertEqual(self.template.count("__STAR_ZONE__"), 1)
+        self.assertIn("if(STAR_ZONE)", self.template)
+        self.assertIn("function inZone(", self.template)
+        self.assertNotIn("const STAR_ZONE=", self.template,
+                         "模板里不得出现具体 zone 字面量（由渲染层注入）")
+        self.assertIn("const STAR_ZONE=null;", self.source)
+        self.assertNotIn("/* const STAR_ZONE=", self.source,
+                         "字面量被裹进注释 = 死代码，页面会 ReferenceError")
+
+    def test_star_zone_default_literal_matches_renderer(self) -> None:
+        """golden 缺省字面量必须 == vendored 渲染层 render_star_zone(None)。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from starmap_render import render_star_zone
+        by_name = {r["name"]: r["old"] for r in self.rules}
+        self.assertEqual(render_star_zone(None), by_name["star_zone"],
+                         "golden 缺省字面量与渲染层缺省值分叉")
+
+    def test_u5_touched_nothing_else(self) -> None:
+        """v35 相对 v34 冻结件的差异只有 basePos 那一块（独立字面量防夹带）。"""
+        v34 = (FIX / "v34_template.html").read_text("utf-8")
+        nl = chr(10)
+        old_block = nl.join([
+            "function basePos(cat){ const r=mulberry32(hashStr(cat.id));",
+            "  return { x:STAR_BOX.x0+r()*STAR_BOX.w, y:STAR_BOX.y0+r()*STAR_BOX.h }; }",
+        ])
+        new_block = nl.join([
+            "__STAR_ZONE__",
+            "function basePos(cat){ const r=mulberry32(hashStr(cat.id));",
+            "  if(STAR_ZONE){ let x=0,y=0; do{ x=STAR_BOX.x0+r()*STAR_BOX.w; y=STAR_BOX.y0+r()*STAR_BOX.h; }while(!inZone(x,y)); return {x:x,y:y}; }",
+            "  return { x:STAR_BOX.x0+r()*STAR_BOX.w, y:STAR_BOX.y0+r()*STAR_BOX.h }; }",
+            "function inZone(x,y){ let t=false; const Z=STAR_ZONE;",
+            "  for(let i=0,j=Z.length-1;i<Z.length;j=i++){ if(((Z[i][1]>y)!==(Z[j][1]>y))&&(x<(Z[j][0]-Z[i][0])*(y-Z[i][1])/(Z[j][1]-Z[i][1])+Z[i][0])) t=!t; }",
+            "  return t; }",
+        ])
+        self.assertEqual(v34.count(old_block), 1)
+        self.assertEqual(self.template, v34.replace(old_block, new_block))
 
 
 if __name__ == "__main__":

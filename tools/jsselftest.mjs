@@ -29,18 +29,23 @@ function slice(startAnchor, endAnchor) {
 const hashStrSrc = slice("function hashStr(s){", "return h>>>0; }");
 const mulberrySrc = slice("function mulberry32(a){", "return ((t^t>>>14)>>>0)/4294967296; }; }");
 const basePosSrc = slice("function basePos(cat){", "y:STAR_BOX.y0+r()*STAR_BOX.h }; }");
-// v34：模板里 STAR_BOX 是 token（值由 build_meta 注入），缺省字面量从
-// v34 golden 提取（单一来源，golden 新鲜度另有门禁），不用本文件再抄一份值。
-assert.ok(html.indexOf("__STAR_BOX__") >= 0, "模板缺少 __STAR_BOX__ 令牌");
+const inZoneSrc = slice("function inZone(x,y){", "  return t; }");
+// v35：STAR_ZONE 令牌缺省=null（矩形行为，与 v34 逐字节一致）；zone 模式
+// 由下方合成三角形单测拒绝采样机制。golden 缺省字面量从 v35 golden 提取。
+assert.ok(html.indexOf("__STAR_ZONE__") >= 0, "模板缺少 __STAR_ZONE__ 令牌");
 const golden = fs.readFileSync(
-  path.join(REPO, "tests", "fixtures", "v34_baseline.html"), "utf8");
-const k = golden.indexOf("const STAR_BOX={");
-assert.ok(k >= 0, "v34 golden 缺少 STAR_BOX 缺省字面量");
-const starBoxSrc = golden.slice(k, golden.indexOf("};", k) + 2);
+  path.join(REPO, "tests", "fixtures", "v35_baseline.html"), "utf8");
+const kBox = golden.indexOf("const STAR_BOX={");
+assert.ok(kBox >= 0, "v35 golden 缺少 STAR_BOX 缺省字面量");
+const starBoxSrc = golden.slice(kBox, golden.indexOf("};", kBox) + 2);
+const kZone = golden.indexOf("const STAR_ZONE=");
+assert.ok(kZone >= 0, "v35 golden 缺少 STAR_ZONE 缺省字面量");
+const starZoneDefault = golden.slice(kZone, golden.indexOf(";", kZone) + 1);
 
 const lib = new Function(
-  starBoxSrc + "\n" + hashStrSrc + "\n" + mulberrySrc + "\n" + basePosSrc +
-  "\nreturn { hashStr, mulberry32, basePos };"
+  starBoxSrc + "\n" + starZoneDefault + "\n" + hashStrSrc + "\n" + mulberrySrc +
+  "\n" + basePosSrc + "\n" + inZoneSrc +
+  "\nreturn { hashStr, mulberry32, basePos, inZone };"
 )();
 
 const boxM = starBoxSrc.match(
@@ -78,4 +83,22 @@ for (let i = 0; i < 8; i++) {
   assert.ok(a >= 0 && a <= 1, "mulberry32 越界");
 }
 
+// ---- 4. STAR_ZONE 拒绝采样机制：小三角形 zone，全部落点必须在形内且确定性 ----
+const tri = [[.1, .1], [.5, .1], [.3, .45]];
+const triBox = "const STAR_BOX={x0:.1,y0:.1,w:.4,h:.35};";
+const triZone = "const STAR_ZONE=" + JSON.stringify(tri) + ";";
+const zlib = new Function(
+  triBox + "\n" + triZone + "\n" + hashStrSrc + "\n" + mulberrySrc + "\n" +
+  basePosSrc + "\n" + inZoneSrc +
+  "\nreturn { basePos, inZone };"
+)();
+const inTri = (x, y) => zlib.inZone(x, y);
+for (let i = 1; i <= 300; i++) {
+  const id = "CAT-" + String(i).padStart(3, "0");
+  const p = zlib.basePos({ id });
+  assert.ok(inTri(p.x, p.y), `${id} 落在 zone 外：${p.x},${p.y}`);
+  const q = zlib.basePos({ id });
+  assert.strictEqual(p.x, q.x, `${id} zone 模式不确定`);
+}
 console.log("jsselftest ✓  hashStr/mulberry32/basePos：确定性、值域、区分度全部通过");
+console.log("jsselftest ✓  STAR_ZONE 拒绝采样：300 id 全落三角形内、确定性保持");

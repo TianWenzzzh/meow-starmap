@@ -76,7 +76,7 @@ ALIASES = {
 # 注入转义、JS 数据块渲染、分片规划全部收敛到 tools/starmap_render.py
 # （vendor 自 catgalaxy-factory，见该文件头）；本文件只做数据装配与落盘。
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from starmap_render import V29RenderInput, render, render_star_box  # noqa: E402
+from starmap_render import V29RenderInput, render, render_star_box, render_star_zone  # noqa: E402
 
 
 # ---------- CSV（vendor: app/csv_loader.py 简化，去 pydantic） ----------
@@ -614,6 +614,9 @@ def main() -> int:
     star_box = opt(None, "star_box", None)
     if star_box is not None:
         render_star_box(star_box)   # 非法值/越界：复用渲染层的 ValueError
+    star_zone = opt(None, "star_zone", None)
+    if star_zone is not None:
+        render_star_zone(star_zone)  # 形状/坐标校验；包络校验由 render() 兜底
 
     # ---------- 52 条规则的最终值（顺序同提取器） ----------
     # F11 主题/校徽（v29）：开放仓库是本地构建、build_meta 由普查团队自写，
@@ -649,7 +652,7 @@ def main() -> int:
         king_name=king_name, poster_title=poster_title,
         poster_file=poster_file, export_map_name=export_map_name,
         skill_foot_line=skill_foot, soul_line=soul_line,
-        calib_note=calib_lead, star_box=star_box,
+        calib_note=calib_lead, star_box=star_box, star_zone=star_zone,
         areas=areas, area_keys=area_keys, rel=rel, consts=consts,
         poster_stars=stars)
     bundle = render(inp)

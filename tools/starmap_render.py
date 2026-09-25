@@ -1,9 +1,9 @@
 """v29 星图纯渲染层（T6 F7 反向 vendor：**上游真相 = 喵星图工厂**）。
 
 vendor 自 catgalaxy-factory `app/starmap_render.py`（MIT，© TianWenzzzh），
-vendor 基线：工厂仓 feat/v29-template 提交 `6d302cd`（v1.3.4 待发版，
-STAR_BOX 建成区框令牌）；相对上一基线 e13dbb4 的差异：v34 代新增
-render_star_box 与 V29RenderInput.star_box（缺省=整幅画，与 v33 逐字节一致）。
+vendor 基线：工厂仓 master 提交 `3a4392d`（v1.3.5 待发版，STAR_ZONE 多边形
+撒点）；相对上一基线 6d302cd 的差异：v35 代新增 render_star_zone 与
+V29RenderInput.star_zone（缺省 null=纯矩形，与 v34 逐字节一致）。
 本仓库 build.py 不再自持渲染实现，只做数据装配后调这里；
 tests/test_vendor_snapshot.py 锁定本文件与基线 sha256 一致。
 
@@ -17,7 +17,7 @@ vendor 化替换（与工厂正文的全部差异，仅此四行，同步时必�
 js_str）；转义对白名单内合法取值都是恒等变换——对同一数据包，本文件与
 16 仓既有产线输出逐字节一致（tests/test_build_nuc / 漂移门禁背书）。
 
-模板 template/starmap.html（v34 代）与规则随 tests/fixtures/nuc_literals.json
+模板 template/starmap.html（v35 代）与规则随 tests/fixtures/nuc_literals.json
 的提取器凭据走。
 """
 from __future__ import annotations
@@ -142,6 +142,24 @@ def render_star_box(box: Optional[dict]) -> str:
         raise ValueError(f"star_box 越界：{b}（x0+w 与 y0+h 不得超过 1）")
     return "const STAR_BOX={" + ",".join(f"{k}:{js_num3(b[k])}"
                                          for k in ("x0", "y0", "w", "h")) + "};"
+
+
+def render_star_zone(zone: Optional[list]) -> str:
+    """STAR_ZONE 的 JS 字面量。缺省 None/[] → null（basePos 走纯矩形，v34 行为）。"""
+    if not zone:
+        return "const STAR_ZONE=null;"
+    for p in zone:
+        if not (isinstance(p, (list, tuple)) and len(p) == 2
+                and all(isinstance(v, (int, float)) for v in p)):
+            raise ValueError(f"star_zone 顶点非法：{p!r}（要 [x,y] 数字对）")
+    pts = [(float(p[0]), float(p[1])) for p in zone]
+    if len(pts) < 3:
+        raise ValueError(f"star_zone 至少要 3 个顶点，收到 {len(pts)} 个")
+    for x, y in pts:
+        if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
+            raise ValueError(f"star_zone 顶点越界：({x!r},{y!r})（坐标要 0..1）")
+    return ("const STAR_ZONE=["
+            + ",".join(f"[{js_num3(x)},{js_num3(y)}]" for x, y in pts) + "];")
 
 
 def render_areas(areas: list[dict]) -> str:
@@ -310,6 +328,7 @@ class V29RenderInput:
     soul_line: Optional[str] = None
     calib_note: Optional[str] = None
     star_box: Optional[dict] = None      # {x0,y0,w,h}；缺省=整幅画（与 v33 逐字节一致）
+    star_zone: Optional[list] = None     # [[x,y],…≥3 点]；缺省 None=纯矩形（v35 起可选拒绝采样）
     footer_signature: str = ""           # 工厂主题落款（追加在页脚，转义后输出）
     # ---- 可选富数据（工厂一般不用，给 05 全量再基线留口） ----
     areas: Optional[list[dict]] = None
@@ -392,6 +411,16 @@ def render(inp: V29RenderInput) -> V29Bundle:
     # 下无分片，PH(p) 回退返回路径本身，故直接给 packager 的固定落点
     # assets/map.jpg（build_relative_bundle 的写入位置）。
     map_ref = inp.map_key if loading != "relative" else "assets/map.jpg"
+
+    if inp.star_zone:
+        _b = {**{"x0": .07, "y0": .09, "w": .86, "h": .82}, **(inp.star_box or {})}
+        _zx = [float(p[0]) for p in inp.star_zone]
+        _zy = [float(p[1]) for p in inp.star_zone]
+        if (min(_zx) < _b["x0"] or max(_zx) > _b["x0"] + _b["w"]
+                or min(_zy) < _b["y0"] or max(_zy) > _b["y0"] + _b["h"]):
+            raise ValueError(
+                "star_zone 超出 STAR_BOX 采样包络（拒绝采样会永不终止）："
+                f"zone x[{min(_zx)},{max(_zx)}] y[{min(_zy)},{max(_zy)}] vs box {_b}")
 
     rules = json.loads(V29_RULES.read_text("utf-8"))["rules"]
 
@@ -491,6 +520,7 @@ def render(inp: V29RenderInput) -> V29Bundle:
         "cats_block": render_cats(inp.cats),
         "calib_block": render_calib(inp.calib),
         "star_box": render_star_box(inp.star_box),
+        "star_zone": render_star_zone(inp.star_zone),
         "areas_block": render_areas(areas),
         "area_keys_block": render_area_keys(area_keys),
         "rel_block": render_rel(rel),

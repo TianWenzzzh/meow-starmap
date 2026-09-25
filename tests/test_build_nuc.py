@@ -111,6 +111,60 @@ class NucBuildTests(unittest.TestCase):
         # 自动文案（build.py:608-613）必须如实说明「待校准」，不许再声称已标定
         self.assertIn("星位由页面内置算法按编号稳定推导", self.html)
 
+    def test_all_generated_stars_inside_star_zone(self) -> None:
+        """端到端确定性守卫：用 Python 逐位移植页面的 hashStr/mulberry32/basePos
+        （含 STAR_ZONE 拒绝采样），对 76 只真猫重演撒点——每一颗都必须落在
+        build_meta.star_zone 多边形内（喂进被测进程真读到的数据）。"""
+        M = 0xFFFFFFFF
+
+        def imul(a, b):
+            return (a * b) & M
+
+        def hash_str(s):
+            h = 2166136261
+            for c in s:
+                h = imul(h ^ ord(c), 16777619)
+            return h
+
+        def mulberry32(seed):
+            a = seed & M
+
+            def rnd():
+                nonlocal a
+                a = (a + 0x6D2B79F5) & M
+                t = imul(a ^ (a >> 15), (1 | a) & M)
+                t = ((t + imul(t ^ (t >> 7), (61 | t) & M)) ^ t) & M
+                return ((t ^ (t >> 14)) & M) / 4294967296
+            return rnd
+
+        def in_zone(x, y, zone):
+            inside = False
+            for i in range(len(zone)):
+                j = (i - 1) % len(zone)
+                xi, yi = zone[i]
+                xj, yj = zone[j]
+                if (yi > y) != (yj > y) and                         x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                    inside = not inside
+            return inside
+
+        bm = json.loads((REPO / "schools/nuc/data/build_meta.json")
+                        .read_text("utf-8"))
+        zone = bm["star_zone"]
+        box = bm["star_box"]
+        m = re.search(r"const CATS = \[(.*?)\n\];", self.html, re.S)
+        ids = re.findall(r'id:"(CAT-\d+)"', m.group(1))
+        self.assertEqual(len(ids), 76)
+        for cid in ids:
+            r = mulberry32(hash_str(cid))
+            for _ in range(10_000):
+                x = box["x0"] + r() * box["w"]
+                y = box["y0"] + r() * box["h"]
+                if in_zone(x, y, zone):
+                    break
+            else:
+                self.fail(f"{cid} 10000 次采样都落不到 zone 内（包络/zone 配置错误）")
+            self.assertTrue(in_zone(x, y, zone), f"{cid} 落在 zone 外")
+
     def test_star_box_confined_to_campus(self) -> None:
         """STAR_BOX 真值（2026-09-26 实测 x0=.154 y0=.294 w=.646 h=.448，
         面积 0.289）：框必须限定在建成区内，且判据对它不恒真。"""
@@ -206,7 +260,11 @@ class NucBuildTests(unittest.TestCase):
                 # v34（2026-09-26）：star_box 的 old 是「缺省框」字面量（golden
                 # 链用），nuc 产物是 build_meta 下发的真实框，由
                 # test_star_box_confined_to_campus 校验真值
-                "star_box"}
+                "star_box",
+                # v35（2026-09-26）：star_zone 的 old 是「null」缺省字面量（golden
+                # 链用），nuc 产物是 build_meta 下发的真实多边形，撒点全部落在
+                # zone 内由 test_all_generated_stars_inside_star_zone 端到端守卫
+                "star_zone"}
         for r in self.fx["rules"]:
             if r["name"] in skip:
                 continue

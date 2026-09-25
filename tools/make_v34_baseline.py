@@ -28,13 +28,14 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 FIX = REPO / "tests" / "fixtures"
-TEMPLATE_PATH = REPO / "template" / "starmap.html"   # 现役，归本脚本独占写
+# v35 起 template/starmap.html 归 make_v35 独占写；本代的模板产物即此冻结件
+TEMPLATE_PATH = FIX / "v34_template.html"
 
 V33_TEMPLATE = FIX / "v33_template.html"        # 冻结输出（历史回归）
 V33_BASELINE = FIX / "v33_baseline.html"        # 上一代输入（勿改）
 V33_RULES = FIX / "nuc_literals.v33.json"       # 上一代冻结规则（勿改）
 V34_BASELINE = FIX / "v34_baseline.html"
-V34_RULES_OUT = FIX / "nuc_literals.json"       # 从此代表 v34（+star_box 一条）
+V34_RULES_OUT = FIX / "nuc_literals.v34.json"   # v35 起 nuc_literals.json 归 make_v35 独占，本代规则出口已成冻结快照
 
 # 本代不碰的 token 集（v29~v33 同款 + 本代新增）
 TOKENS = ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__",
