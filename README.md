@@ -57,7 +57,7 @@ uv run --with pillow tools/build.py --pkg schools/示例校 --out dist/示例校
 
 | 学校 | 在册 | 数据包 | 说明 |
 |---|---|---|---|
-| 中北大学 | 76 只 | [`schools/nuc/`](schools/nuc/) | 首个全量真实数据包，54 颗星手工校准 |
+| 中北大学 | 76 只 | [`schools/nuc/`](schools/nuc/) | 首个全量真实数据包；手绘夜空底图（原比例），星位=建成区内确定性撒点（basePos+STAR_BOX，非实测；截至 v2.8.7 曾为 54 颗人工校准） |
 | 示例校 | 2 只（虚构） | [`schools/示例校/`](schools/示例校/) | 占位样本，可随意删除替换 |
 
 你们学校会是下一颗星吗 ✦
@@ -70,13 +70,15 @@ GitHub Actions（[CI 状态](https://github.com/TianWenzzzh/meow-starmap/actions
 在每次 push/PR 跑两条线：**131 项 Python 测试**（5 个 golden 自证 skip 属设计内）+ **全仓 HTML/分片语法门禁**，
 以及 headless Chromium 对 `/gallery/ /nuc/ /demo/` 的 **http + file:// 双冒烟**
 （懒加载网络断言：初始仅底图关键片、灯箱/档案卡按需取片解码、0 pageerror）。
-照片默认**分片懒加载**：中北版首屏照片仅 216KB（约为原 11MB eager 全量的 2%），
+照片默认**分片懒加载**：首屏只取底图关键片，照片点到才下载
+（约为 eager 全量的 2%），
 `--eager-photos` 可出旧整包；两种模式双击 file:// 都能离线玩。
 
 - **字节级往返**：模板由 v2.7 正式版机器提取，把原始数据灌回后与正式版逐字节相同
   （sha256 锁定，golden 基线入库 `tests/fixtures/`，CI 无需私有资产）；
-- **中北构建等价**：76 条 CATS 逐字段一致、54 个 CALIB 坐标差 ≤0.02、
-  76 个照片键与 v2.7 解码字节/分片行双重 sha256 清单相同；
+- **中北构建等价**：76 条 CATS 逐字段一致、CALIB 为空（v2.9.0 起星位=
+  basePos+STAR_BOX 推导，页面上手拖校准仍可导出坐标固化）、
+  76 个照片键（75 猫照 + 手绘底图）解码字节/分片行双重 sha256 清单相同；
 - **托管产物零漂移**：CI 现场构建 `schools/` 并与 Pages 上的 `nuc/ demo/`
   逐字节比对，模板或数据更新后忘记重建会立即变红；
 - **脏数据前置拒绝**：空编号/重复编号/缺照片目录等新手坑在构建期带行号报错；
