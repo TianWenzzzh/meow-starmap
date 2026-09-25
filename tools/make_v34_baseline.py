@@ -44,7 +44,7 @@ TOKENS = ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__",
 # U4 补丁：只动 basePos 这一处。逐值清点（出现次数必须恰为 1，否则 raise）。
 U4_OLD = ("function basePos(cat){ const r=mulberry32(hashStr(cat.id));\n"
           "  return { x:.07+r()*.86, y:.09+r()*.82 }; }")
-U4_COMMENT = "/* 建成区框：basePos 只在此框内撒点（v34 起，缺省=整幅画） */"
+U4_COMMENT = "/* 建成区框：basePos 只在此框内撒点（v34 起；缺省=下行四常量，同 v33） */"
 U4_CONST = "const STAR_BOX={x0:.07,y0:.09,w:.86,h:.82};"   # = 渲染层缺省字面量
 U4_TOKEN = "__STAR_BOX__"
 U4_NEW_BASEPOS = ("function basePos(cat){ const r=mulberry32(hashStr(cat.id));\n"

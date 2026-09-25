@@ -396,7 +396,7 @@ class V34RoundtripTest(_RoundtripBase, unittest.TestCase):
         self.assertIn("const STAR_BOX={x0:.07,y0:.09,w:.86,h:.82};",
                       self.source)
         self.assertNotIn("x:.07+r()*.86", self.source,
-                         "整幅画老写法不得残留")
+                         "旧的全图均匀撒点写法不得残留")
         self.assertNotIn("/* const STAR_BOX=", self.source,
                          "常量被裹进注释 = 死代码，页面会 ReferenceError")
 
@@ -418,7 +418,7 @@ class V34RoundtripTest(_RoundtripBase, unittest.TestCase):
                      "const r=mulberry32(hashStr(cat.id));\n"
                      "  return { x:.07+r()*.86, y:.09+r()*.82 }; }")
         new_block = (
-            "/* 建成区框：basePos 只在此框内撒点（v34 起，缺省=整幅画） */\n"
+            "/* 建成区框：basePos 只在此框内撒点（v34 起；缺省=下行四常量，同 v33） */\n"
             "__STAR_BOX__\n"
             "function basePos(cat){ const r=mulberry32(hashStr(cat.id));\n"
             "  return { x:STAR_BOX.x0+r()*STAR_BOX.w, "
