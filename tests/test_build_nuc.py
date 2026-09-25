@@ -1,9 +1,10 @@
-"""P3 验收：中北 76 只全量数据包构建产物必须与 v2.7 语义等价。
+"""P3 验收：中北 76 只全量数据包构建产物必须与数据包语义等价。
 
 硬断言：
   1. HTML 无残留 token；
   2. CATS 76 条 12 字段，人工小传/亮度等与 v2.7 真值（cats_override）全等；
-  3. CALIB 54 键坐标与 v2.7 逐键差 ≤0.02（实测全 0），22 只无键走 basePos；
+  3. v34 起 CALIB 为空（不再带人工键，basePos+STAR_BOX 推导），旧 54 键块
+     不得复活；STAR_BOX 框限定在建成区（判据形状经真实构建测量核定）；
   4. AREAS/AREA_KEYS/REL/CONST/stars 与数据包全等；
   5. __PHOTOS 76 键（75 猫照 + 1 底图），解码后字节 sha256 与入库清单
      tests/fixtures/nuc_photos_sha256.json 全等（CI 无需 05 资产）；
@@ -97,26 +98,31 @@ class NucBuildTests(unittest.TestCase):
             self.assertEqual(pc, t["photoCount"])
             self.assertAlmostEqual(br, t["brightness"], places=6)
 
-    def test_calib_54_keys_coords_equal(self) -> None:
-        src = next(r["old"] for r in self.fx["rules"]
-                   if r["name"] == "calib_block")
-        src_pts = {cid: (float(x), float(y)) for cid, x, y in
-                   re.findall(r'"(CAT-\d+)":\{x:([\d.]+),y:([\d.]+)\}', src)}
-        self.assertEqual(len(src_pts), 54)
+    def test_calib_is_empty_and_note_is_honest(self) -> None:
+        """v34 起 nuc 不再带人工 CALIB：星位=basePos 确定性推导，页面上手拖
+        校准后导出坐标。反向守卫：旧 54 键块不得悄悄复活。"""
         m = re.search(r"const CALIB=\{(.*?)\};", self.html, re.S)
-        got_pts = {cid: (float(x), float(y)) for cid, x, y in
-                   re.findall(r'"(CAT-\d+)":\{x:([\d.]+),y:([\d.]+)\}',
-                              m.group(1))}
-        self.assertEqual(set(got_pts), set(src_pts))
-        for cid, (sx, sy) in src_pts.items():
-            gx, gy = got_pts[cid]
-            self.assertLessEqual(abs(gx - sx), 0.02, f"{cid} x 漂移")
-            self.assertLessEqual(abs(gy - sy), 0.02, f"{cid} y 漂移")
-        # 22 只无 CALIB 键，浏览器 basePos 兜底
-        m2 = re.search(r"const CATS = \[(.*?)\n\];", self.html, re.S)
-        all_ids = set(re.findall(r'id:"(CAT-\d+)"', m2.group(1)))
-        fallback = sorted(all_ids - set(got_pts))
-        self.assertEqual(len(fallback), 22)
+        self.assertEqual(m.group(1).strip(), "", "v34 起 nuc 不再带人工 CALIB")
+        self.assertIn("basePos",
+                      self.html[self.html.find("const CALIB") - 200:
+                                self.html.find("const CALIB")])
+        self.assertNotIn('"CAT-001":{x:.626', self.html,
+                         "旧的 54 键校准块不得复活")
+        # 自动文案（build.py:608-613）必须如实说明「待校准」，不许再声称已标定
+        self.assertIn("星位由页面内置算法按编号稳定推导", self.html)
+
+    def test_star_box_confined_to_campus(self) -> None:
+        """STAR_BOX 真值（2026-09-26 实测 x0=.154 y0=.294 w=.646 h=.448，
+        面积 0.289）：框必须限定在建成区内，且判据对它不恒真。"""
+        m = re.search(r"const STAR_BOX=\{x0:([\d.]+),y0:([\d.]+),"
+                      r"w:([\d.]+),h:([\d.]+)\};", self.html)
+        self.assertTrue(m, "产物里没有 STAR_BOX 字面量（形状变了就要同步这条判据）")
+        x0, y0, w, h = (float(v) for v in m.groups())
+        self.assertGreaterEqual(x0, 0.10)
+        self.assertLessEqual(x0 + w, 0.90)
+        self.assertGreaterEqual(y0, 0.15)
+        self.assertLessEqual(y0 + h, 0.90)
+        self.assertLess(w * h, 0.55, "框面积过大 ⇒ 等于回到整幅撒点")
 
     def test_areas_keys_rel_const_stars(self) -> None:
         def block(const_name: str) -> str:
@@ -188,7 +194,19 @@ class NucBuildTests(unittest.TestCase):
                 "stats_foot",
                 # P0 版本串注入（2026-09-18）：版本号改为 build_meta 驱动
                 # （v2.7 → v2.8.4），两条旧字面量随产物版本演进属设计内差异
-                "console_line1", "version"}
+                "console_line1", "version",
+                # v34（2026-09-26）：底图文件名改为数据包驱动（MAP_FILE token），
+                # 两条 old 内嵌的 v2.7 旧图名属历史快照；MAP_SRC 真值由
+                # test_map/冒烟另行校验
+                "banner_sub", "map_src",
+                # v34（2026-09-26）：删 calib_note 后该注释由 build.py 自动文案
+                # 接管（星位=basePos 推导 · 可手拖校准），新文案由
+                # test_calib_is_empty_and_note_is_honest 校验
+                "calib_lead_comment",
+                # v34（2026-09-26）：star_box 的 old 是「缺省框」字面量（golden
+                # 链用），nuc 产物是 build_meta 下发的真实框，由
+                # test_star_box_confined_to_campus 校验真值
+                "star_box"}
         for r in self.fx["rules"]:
             if r["name"] in skip:
                 continue
