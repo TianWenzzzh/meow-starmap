@@ -62,7 +62,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
-    out_path = args.out
+    out_path = args.out.resolve()
 
     for p in (DAY_HAND, OFFICIAL_DAY, OFFICIAL_NIGHT_REF):
         if not p.exists():
