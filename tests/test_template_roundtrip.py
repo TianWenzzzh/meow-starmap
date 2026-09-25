@@ -26,6 +26,11 @@ class _RoundtripBase:
     baseline_path: Path
     photo_script_count: int          # 引导串中 <script> 数（v27=8 eager 片）
     expect_source_sha: bool
+    # golden 数据块计数（v2.7 提取期快照的实况；各代继承，只有数据变了的代覆写）
+    expect_cats: int = 76
+    expect_calib_keys: int = 54
+    expect_areas: int = 12
+    expect_consts: int = 12
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -99,11 +104,14 @@ class _RoundtripBase:
 
     def test_blocks_hold_full_nuc_data(self) -> None:
         by_name = {r["name"]: r["old"] for r in self.rules}
-        self.assertEqual(by_name["cats_block"].count('id:"CAT-'), 76)
+        self.assertEqual(by_name["cats_block"].count('id:"CAT-'),
+                         self.expect_cats)
         calib_keys = re.findall(r'"CAT-\d+":\{x:', by_name["calib_block"])
-        self.assertEqual(len(calib_keys), 54)
-        self.assertEqual(by_name["areas_block"].count("{x:"), 12)
-        self.assertEqual(by_name["const_block"].count('{n:"'), 12)
+        self.assertEqual(len(calib_keys), self.expect_calib_keys)
+        self.assertEqual(by_name["areas_block"].count("{x:"),
+                         self.expect_areas)
+        self.assertEqual(by_name["const_block"].count('{n:"'),
+                         self.expect_consts)
         self.assertEqual(by_name["rel_block"].count('label:"'), 2)
         self.assertEqual(
             by_name["photo_scripts"].count("<script"), self.photo_script_count)
@@ -145,7 +153,7 @@ class V28RoundtripTest(_RoundtripBase, unittest.TestCase):
 class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
     """v29 历史快照回归（F11 三 token 齐备、排版精修前的最后一版）。"""
     template_path = FIX / "v29_template.html"
-    rules_path = FIX / "nuc_literals.json"
+    rules_path = FIX / "nuc_literals.v33.json"
     baseline_path = FIX / "v29_baseline.html"
     photo_script_count = 2
     expect_source_sha = False
@@ -183,7 +191,7 @@ class V29RoundtripTest(_RoundtripBase, unittest.TestCase):
 class V30RoundtripTest(_RoundtripBase, unittest.TestCase):
     """v30 历史快照回归（字栈顺序修正前的最后一版，golden 已冻结）。"""
     template_path = FIX / "v30_template.html"
-    rules_path = FIX / "nuc_literals.json"
+    rules_path = FIX / "nuc_literals.v33.json"
     baseline_path = FIX / "v30_baseline.html"
     photo_script_count = 2
     expect_source_sha = False
@@ -231,7 +239,7 @@ class V30RoundtripTest(_RoundtripBase, unittest.TestCase):
 class V31RoundtripTest(_RoundtripBase, unittest.TestCase):
     """v31 历史快照回归（canvas 字体栈补全前的最后一版，golden 已冻结）。"""
     template_path = FIX / "v31_template.html"
-    rules_path = FIX / "nuc_literals.json"
+    rules_path = FIX / "nuc_literals.v33.json"
     baseline_path = FIX / "v31_baseline.html"
     photo_script_count = 2
     expect_source_sha = False
@@ -282,7 +290,7 @@ class V31RoundtripTest(_RoundtripBase, unittest.TestCase):
 class V32RoundtripTest(_RoundtripBase, unittest.TestCase):
     """v32 历史快照回归（Safari 前缀补丁前的最后一版，golden 已冻结）。"""
     template_path = FIX / "v32_template.html"
-    rules_path = FIX / "nuc_literals.json"
+    rules_path = FIX / "nuc_literals.v33.json"
     baseline_path = FIX / "v32_baseline.html"
     photo_script_count = 2
     expect_source_sha = False
@@ -336,10 +344,93 @@ class V32RoundtripTest(_RoundtripBase, unittest.TestCase):
                          self.template)
 
 
-class V33RoundtripTest(_RoundtripBase, unittest.TestCase):
-    """现役模板：v32 + 毛玻璃 Safari 前缀（U3 补丁），golden 由 make_v33 生成。"""
+class V34RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """现役模板：v33 + STAR_BOX 建成区框（U4 补丁），golden 由 make_v34 生成。"""
     template_path = REPO_ROOT / "template" / "starmap.html"
     rules_path = FIX / "nuc_literals.json"
+    baseline_path = FIX / "v34_baseline.html"
+    photo_script_count = 2
+    expect_source_sha = False
+    # 注：任务书曾计划此处覆写 expect_calib_keys=0；但 golden 链的数据是
+    # v2.7 提取期历史快照（version 规则 old 仍是 v2.7），54 人工键在 golden
+    # 里是结构性的，覆写 0 必红。「nuc 不再带人工键」的不变式由
+    # tests/test_build_nuc.py 对真实产物把守。故沿用基类默认（= golden 实况）。
+
+    def test_lazy_loader_runtime_present(self) -> None:
+        for needle in ("const __PHOTO_BOOT=", "function __ensureChunk(",
+                       "function __ensurePhoto(", "function __whenPhoto("):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, self.template)
+
+    def test_eager_bootstrap_absent_from_template(self) -> None:
+        self.assertNotIn('<script src="assets/photo-data-', self.template)
+        self.assertNotIn("const __PM=", self.template)
+
+    def test_f11_tokens_present_in_template(self) -> None:
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            with self.subTest(token=token):
+                self.assertEqual(self.template.count(token), 1)
+
+    def test_f11_empty_renders_equal_v33_plus_u4(self) -> None:
+        """F11 红线（v34 形态）：空 token 渲染 == 冻结 v33 模板 + U4。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from make_v34_baseline import apply_u4
+        empty = self.template
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            empty = empty.replace(token, "")
+        ref = apply_u4(
+            (FIX / "v33_template.html").read_text("utf-8"), "v33 冻结件",
+            token_form=True)
+        for token in ("__THEME_CSS__", "__LOGO_INTRO__", "__LOGO_TOPBAR__"):
+            ref = ref.replace(token, "")
+        self.assertEqual(empty, ref,
+                         "F11 空值路径不再等于「v33 模板 + U4」")
+
+    def test_star_box_token_confined_and_live(self) -> None:
+        """token 在模板恰 1 处；基线侧是缺省字面量活代码；老写法绝迹。"""
+        self.assertEqual(self.template.count("__STAR_BOX__"), 1)
+        self.assertNotIn("const STAR_BOX=", self.template)
+        self.assertIn("const STAR_BOX={x0:.07,y0:.09,w:.86,h:.82};",
+                      self.source)
+        self.assertNotIn("x:.07+r()*.86", self.source,
+                         "整幅画老写法不得残留")
+        self.assertNotIn("/* const STAR_BOX=", self.source,
+                         "常量被裹进注释 = 死代码，页面会 ReferenceError")
+
+    def test_star_box_default_literal_matches_renderer(self) -> None:
+        """golden 里的缺省字面量必须 == vendored 渲染层 render_star_box(None)。"""
+        import sys
+        tools = str(REPO_ROOT / "tools")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        from starmap_render import render_star_box
+        by_name = {r["name"]: r["old"] for r in self.rules}
+        self.assertEqual(render_star_box(None), by_name["star_box"],
+                         "golden 缺省字面量与渲染层缺省值分叉")
+
+    def test_u4_touched_nothing_else(self) -> None:
+        """v34 相对 v33 冻结件的差异只有 basePos 那一块（独立字面量防夹带）。"""
+        v33 = (FIX / "v33_template.html").read_text("utf-8")
+        old_block = ("function basePos(cat){ "
+                     "const r=mulberry32(hashStr(cat.id));\n"
+                     "  return { x:.07+r()*.86, y:.09+r()*.82 }; }")
+        new_block = (
+            "/* 建成区框：basePos 只在此框内撒点（v34 起，缺省=整幅画） */\n"
+            "__STAR_BOX__\n"
+            "function basePos(cat){ const r=mulberry32(hashStr(cat.id));\n"
+            "  return { x:STAR_BOX.x0+r()*STAR_BOX.w, "
+            "y:STAR_BOX.y0+r()*STAR_BOX.h }; }")
+        self.assertEqual(v33.count(old_block), 1)
+        self.assertEqual(self.template, v33.replace(old_block, new_block))
+
+
+class V33RoundtripTest(_RoundtripBase, unittest.TestCase):
+    """v33 历史快照回归（STAR_BOX 建成区框前的最后一版，golden 已冻结）。"""
+    template_path = FIX / "v33_template.html"
+    rules_path = FIX / "nuc_literals.v33.json"
     baseline_path = FIX / "v33_baseline.html"
     photo_script_count = 2
     expect_source_sha = False

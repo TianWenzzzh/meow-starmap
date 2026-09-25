@@ -16,8 +16,8 @@ REPO = Path(__file__).resolve().parents[1]
 VENDOR = REPO / "tools" / "starmap_render.py"
 
 # 与文件头「vendor 基线」标注绑定；升基线时两处一起改
-PINNED_SHA256 = "055b7a7f2b5e56c6ec7a369344d8e0975594ca73d4b71bc6a4b67a62b7436546"
-FACTORY_REF = "feat/v29-template e13dbb4 (v1.3.1 待发版；本代仅同步页脚双许可行)"
+PINNED_SHA256 = "af43fe99e8d737cbb8da3b29ddecd0ccf3420e7b54e2060d0bb33e8b8a999b2b"
+FACTORY_REF = "feat/v29-template 6d302cd (v1.3.4 待发版；v34 代 STAR_BOX 令牌)"
 
 
 class VendorSnapshotLockTests(unittest.TestCase):

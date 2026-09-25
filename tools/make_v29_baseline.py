@@ -36,7 +36,7 @@ V28_TEMPLATE = FIX / "v28_template_lazy.html"
 V28_BASELINE = FIX / "v28_baseline_lazy.html"
 V28_RULES = FIX / "nuc_literals.v28.json"   # 上一代冻结快照（勿指向输出文件）
 V29_BASELINE = FIX / "v29_baseline.html"
-V29_RULES_OUT = FIX / "nuc_literals.json"
+V29_RULES_OUT = FIX / "nuc_literals.v33.json"   # v34 起 nuc_literals.json 归 make_v34 独占，本代规则出口已成冻结快照
 
 # F11 token 补丁：只作用于模板。(name, v28 锚点原文, 模板新形态, 次数)
 # 锚点在 v28 模板/基线均唯一（已 grep 核实）。

@@ -42,7 +42,7 @@ TEMPLATE_PATH = REPO / "template" / "starmap.html"
 
 V31_TEMPLATE = FIX / "v31_template.html"        # 冻结输出（历史回归）
 V31_BASELINE = FIX / "v31_baseline.html"        # 上一代输入（勿改）
-V31_RULES = FIX / "nuc_literals.json"           # 上一代规则（勿改，本代不变）
+V31_RULES = FIX / "nuc_literals.v33.json"       # 上一代规则（v34 起冻结；nuc_literals.json 归 make_v34）
 V32_BASELINE = FIX / "v32_baseline.html"
 # 🔴 v33 起本代已冻结：输出改指自家冻结件，不再写 template/starmap.html。
 # 现役模板归 make_v33_baseline.py 独占——旧代脚本若继续写它，一跑就把线上

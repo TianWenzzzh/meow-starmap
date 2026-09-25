@@ -38,7 +38,7 @@ TEMPLATE_PATH = FIX / "v31_template.html"
 
 V30_TEMPLATE = FIX / "v30_template.html"        # 冻结输出（历史回归）
 V30_BASELINE = FIX / "v30_baseline.html"        # 上一代输入（勿改）
-V30_RULES = FIX / "nuc_literals.json"           # 上一代规则（勿改，本代不变）
+V30_RULES = FIX / "nuc_literals.v33.json"       # 上一代规则（v34 起冻结；nuc_literals.json 归 make_v34）
 V31_BASELINE = FIX / "v31_baseline.html"
 
 # 字栈顺序补丁：(编号, v30 原文, v31 新形态, 次数)。锚点均唯一（已 grep 核实）。

@@ -1,16 +1,23 @@
 """v29 星图纯渲染层（T6 F7 反向 vendor：**上游真相 = 喵星图工厂**）。
 
 vendor 自 catgalaxy-factory `app/starmap_render.py`（MIT，© TianWenzzzh），
-vendor 基线：工厂仓 feat/v29-template 提交 `e13dbb4`（v1.3.1，页脚双许可版）；
-相对上一基线 8284332 的差异仅一处：stats_foot 追加双许可行（深扫 E-02）。
+vendor 基线：工厂仓 feat/v29-template 提交 `6d302cd`（v1.3.4 待发版，
+STAR_BOX 建成区框令牌）；相对上一基线 e13dbb4 的差异：v34 代新增
+render_star_box 与 V29RenderInput.star_box（缺省=整幅画，与 v33 逐字节一致）。
 本仓库 build.py 不再自持渲染实现，只做数据装配后调这里；
 tests/test_vendor_snapshot.py 锁定本文件与基线 sha256 一致。
+
+vendor 化替换（与工厂正文的全部差异，仅此四行，同步时必须重做）：
+  from .config import PHOTO_CHUNK_BYTES → PHOTO_CHUNK_BYTES = 1_500_000
+  from .star_mapper import … → from starmap_layout import …
+  V29_TEMPLATE → APP_DIR.parent / "template" / "starmap.html"
+  V29_RULES   → APP_DIR.parent / "tests" / "fixtures" / "nuc_literals.json"
 
 上游为在线服务（输入不可信任），自由文本按落地上下文转义（html_esc /
 js_str）；转义对白名单内合法取值都是恒等变换——对同一数据包，本文件与
 16 仓既有产线输出逐字节一致（tests/test_build_nuc / 漂移门禁背书）。
 
-模板 template/starmap.html（v32 代）与规则随 tests/fixtures/nuc_literals.json
+模板 template/starmap.html（v34 代）与规则随 tests/fixtures/nuc_literals.json
 的提取器凭据走。
 """
 from __future__ import annotations
@@ -25,12 +32,12 @@ from html import escape
 from pathlib import Path
 from typing import Optional
 
+PHOTO_CHUNK_BYTES = 1_500_000  # 与 build.py CHUNK_BYTES 同值（分片边界唯一真相）
 from starmap_layout import assign_anchors, normalize_area
 
 APP_DIR = Path(__file__).resolve().parent
 V29_TEMPLATE = APP_DIR.parent / "template" / "starmap.html"
 V29_RULES = APP_DIR.parent / "tests" / "fixtures" / "nuc_literals.json"
-PHOTO_CHUNK_BYTES = 1_500_000  # 与 build.py CHUNK_BYTES 同值（分片边界唯一真相）
 
 # 与 16 仓库 build.py 相同的底图文件名白名单 / 仓库 URL 白名单
 MAP_NAME_RE = re.compile(r"^[0-9A-Za-z\u4e00-\u9fff_.\- ]+\.(jpe?g)$",
@@ -123,6 +130,18 @@ def render_calib(calib: dict) -> str:
         lines.append("  " + row + ("," if i + 4 < len(items) else ""))
     lines.append("};")
     return "\n".join(lines)
+
+
+def render_star_box(box: Optional[dict]) -> str:
+    """STAR_BOX 的 JS 字面量。缺省值必须逐字节等于 v33 模板里写死的四个常量。"""
+    b = {**{"x0": .07, "y0": .09, "w": .86, "h": .82}, **(box or {})}
+    for k, v in b.items():
+        if not (isinstance(v, (int, float)) and 0.0 <= float(v) <= 1.0):
+            raise ValueError(f"star_box.{k} 非法：{v!r}（要 0..1 的数）")
+    if b["w"] <= 0 or b["h"] <= 0 or b["x0"] + b["w"] > 1 or b["y0"] + b["h"] > 1:
+        raise ValueError(f"star_box 越界：{b}（x0+w 与 y0+h 不得超过 1）")
+    return "const STAR_BOX={" + ",".join(f"{k}:{js_num3(b[k])}"
+                                         for k in ("x0", "y0", "w", "h")) + "};"
 
 
 def render_areas(areas: list[dict]) -> str:
@@ -290,6 +309,7 @@ class V29RenderInput:
     skill_foot_line: Optional[str] = None
     soul_line: Optional[str] = None
     calib_note: Optional[str] = None
+    star_box: Optional[dict] = None      # {x0,y0,w,h}；缺省=整幅画（与 v33 逐字节一致）
     footer_signature: str = ""           # 工厂主题落款（追加在页脚，转义后输出）
     # ---- 可选富数据（工厂一般不用，给 05 全量再基线留口） ----
     areas: Optional[list[dict]] = None
@@ -470,6 +490,7 @@ def render(inp: V29RenderInput) -> V29Bundle:
         # ---- JS 数据块（规则表前 7 条）----
         "cats_block": render_cats(inp.cats),
         "calib_block": render_calib(inp.calib),
+        "star_box": render_star_box(inp.star_box),
         "areas_block": render_areas(areas),
         "area_keys_block": render_area_keys(area_keys),
         "rel_block": render_rel(rel),

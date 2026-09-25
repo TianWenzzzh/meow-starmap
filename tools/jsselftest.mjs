@@ -28,12 +28,25 @@ function slice(startAnchor, endAnchor) {
 
 const hashStrSrc = slice("function hashStr(s){", "return h>>>0; }");
 const mulberrySrc = slice("function mulberry32(a){", "return ((t^t>>>14)>>>0)/4294967296; }; }");
-const basePosSrc = slice("function basePos(cat){", "return { x:.07+r()*.86, y:.09+r()*.82 }; }");
+const basePosSrc = slice("function basePos(cat){", "y:STAR_BOX.y0+r()*STAR_BOX.h }; }");
+// v34：模板里 STAR_BOX 是 token（值由 build_meta 注入），缺省字面量从
+// v34 golden 提取（单一来源，golden 新鲜度另有门禁），不用本文件再抄一份值。
+assert.ok(html.indexOf("__STAR_BOX__") >= 0, "模板缺少 __STAR_BOX__ 令牌");
+const golden = fs.readFileSync(
+  path.join(REPO, "tests", "fixtures", "v34_baseline.html"), "utf8");
+const k = golden.indexOf("const STAR_BOX={");
+assert.ok(k >= 0, "v34 golden 缺少 STAR_BOX 缺省字面量");
+const starBoxSrc = golden.slice(k, golden.indexOf("};", k) + 2);
 
 const lib = new Function(
-  hashStrSrc + "\n" + mulberrySrc + "\n" + basePosSrc +
+  starBoxSrc + "\n" + hashStrSrc + "\n" + mulberrySrc + "\n" + basePosSrc +
   "\nreturn { hashStr, mulberry32, basePos };"
 )();
+
+const boxM = starBoxSrc.match(
+  /^const STAR_BOX=\{x0:([\d.]+),y0:([\d.]+),w:([\d.]+),h:([\d.]+)\};$/);
+assert.ok(boxM, "STAR_BOX 字面量形状变了，同步本自检的抽取与值域推导");
+const [BOX_X0, BOX_Y0, BOX_W, BOX_H] = boxM.slice(1).map(Number);
 
 // ---- 1. hashStr：确定性 + FNV-1a 期望值（手算对齐 star_mapper._hash_str）----
 assert.strictEqual(lib.hashStr("CAT-001"), lib.hashStr("CAT-001"), "hashStr 非确定");
@@ -48,8 +61,10 @@ for (let i = 1; i <= N; i++) {
   const p = lib.basePos({ id });
   assert.strictEqual(p.x, lib.basePos({ id }).x, `${id} x 不确定`);
   assert.strictEqual(p.y, lib.basePos({ id }).y, `${id} y 不确定`);
-  assert.ok(p.x >= 0.07 - 1e-9 && p.x <= 0.93 + 1e-9, `${id} x 越界：${p.x}`);
-  assert.ok(p.y >= 0.09 - 1e-9 && p.y <= 0.91 + 1e-9, `${id} y 越界：${p.y}`);
+  assert.ok(p.x >= BOX_X0 - 1e-9 && p.x <= BOX_X0 + BOX_W + 1e-9,
+            `${id} x 越出 STAR_BOX：${p.x}`);
+  assert.ok(p.y >= BOX_Y0 - 1e-9 && p.y <= BOX_Y0 + BOX_H + 1e-9,
+            `${id} y 越出 STAR_BOX：${p.y}`);
   seen.set(id, p.x.toFixed(6) + "," + p.y.toFixed(6));
 }
 assert.strictEqual(seen.size, N, "id 去重后数量不符");

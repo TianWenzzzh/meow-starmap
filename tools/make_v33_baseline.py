@@ -35,11 +35,12 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 FIX = REPO / "tests" / "fixtures"
-TEMPLATE_PATH = REPO / "template" / "starmap.html"
+# v34 起 template/starmap.html 归 make_v34 独占写；本代的模板产物即此冻结件
+TEMPLATE_PATH = FIX / "v33_template.html"
 
 V32_TEMPLATE = FIX / "v32_template.html"        # 冻结输出（历史回归）
 V32_BASELINE = FIX / "v32_baseline.html"        # 上一代输入（勿改）
-V32_RULES = FIX / "nuc_literals.json"           # 规则集不变（本代不新增 token）
+V32_RULES = FIX / "nuc_literals.v33.json"       # 规则集不变（v34 起冻结；nuc_literals.json 归 make_v34）
 V33_BASELINE = FIX / "v33_baseline.html"
 
 # 本代不碰的 token 集（与 v29~v32 一致）
@@ -138,10 +139,10 @@ def main() -> int:
     v32_baseline, _ = _read(V32_BASELINE)
     v32_rules = json.loads(V32_RULES.read_text("utf-8"))["rules"]
 
-    if not check and not V32_TEMPLATE.exists():
-        _write(V32_TEMPLATE, _read(TEMPLATE_PATH)[0])
     if not V32_TEMPLATE.exists():
-        raise SystemExit("缺 fixtures/v32_template.html 冻结快照")
+        raise SystemExit("缺 fixtures/v32_template.html 冻结快照——"
+                         "活模板已是 v34，请从 git 历史恢复 v32 冻结件，"
+                         "不得从现役模板重冻")
     v32_template, nl32 = _read(V32_TEMPLATE)
     if not check and nl32.crlf:
         _write(V32_TEMPLATE, v32_template)      # 只换换行，内容不动

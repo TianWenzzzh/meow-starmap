@@ -36,7 +36,7 @@ TEMPLATE_PATH = FIX / "v30_template.html"
 
 V29_TEMPLATE = FIX / "v29_template.html"        # 冻结输出（历史回归）
 V29_BASELINE = FIX / "v29_baseline.html"        # 上一代输入（勿改）
-V29_RULES = FIX / "nuc_literals.json"           # 上一代规则（勿改，本代不变）
+V29_RULES = FIX / "nuc_literals.v33.json"       # 上一代规则（v34 起冻结；nuc_literals.json 归 make_v34）
 V30_BASELINE = FIX / "v30_baseline.html"
 
 _FALLBACK = ("\"HarmonyOS Sans SC\",\"MiSans\",\"Microsoft YaHei\","
