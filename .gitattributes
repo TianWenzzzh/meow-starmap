@@ -8,3 +8,5 @@
 *.ico binary
 *.zip binary
 *.mp4 binary
+nuc/index.html -text
+nuc/assets/*.js -text
